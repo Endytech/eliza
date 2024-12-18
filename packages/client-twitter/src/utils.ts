@@ -180,7 +180,7 @@ export async function sendTweet(
     for (const chunk of tweetChunks) {
         const result = await client.requestQueue.add(
             async () =>
-                await client.twitterClient.sendTweet(
+                await client.twitterClient.sendLongTweet(
                     chunk.trim(),
                     previousTweetId
                 )

@@ -333,13 +333,13 @@ export class TwitterPostClient {
                 if (mediaData.length > 0) {
                     const result = await this.client.requestQueue.add(
                         async () =>
-                            await this.client.twitterClient.sendTweet(content, undefined, mediaData)
+                            await this.client.twitterClient.sendLongTweet(content, undefined, mediaData)
                     );
                     body = await result.json();
                 } else {
                     const result = await this.client.requestQueue.add(
                         async () =>
-                            await this.client.twitterClient.sendTweet(cleanedContent)
+                            await this.client.twitterClient.sendLongTweet(cleanedContent)
                     );
                     body = await result.json()
                 }
@@ -774,7 +774,7 @@ export class TwitterPostClient {
 
             // Send the tweet through request queue
             const result = await this.client.requestQueue.add(
-                async () => await this.client.twitterClient.sendTweet(
+                async () => await this.client.twitterClient.sendLongTweet(
                     replyText,
                     tweet.id
                 )
