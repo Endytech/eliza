@@ -41,13 +41,21 @@ runtime: IAgentRuntime
         let result = '';
         if (newsFetch.items && newsFetch.items.length > 0) {
             // result = newsFetch.items.map((item) => `${item?.fields?.title}. ${item?.fields?.description}. Date - ${item?.fields?.date}.\n`).join(', ');
-            result = newsFetch.items.map((item) => {
+            for (const item of newsFetch.items){
                 elizaLogger.info("item", item);
                 const title = item?.fields?.title || "No Title"; // Fallback if title is missing
                 const description = item?.fields?.description || "No Description"; // Fallback if description is missing
                 const date = item?.fields?.date || "No Date"; // Fallback if date is missing
-                return `${title}. ${description}. Date - ${date}.\n`;
-            }).join(', ')
+                elizaLogger.info("result", `${title}. ${description}. Date - ${date}.\n`);
+                // return `${title}. ${description}. Date - ${date}.\n`;
+            }
+            // result = newsFetch.items.map((item) => {
+            //     elizaLogger.info("item", item);
+            //     const title = item?.fields?.title || "No Title"; // Fallback if title is missing
+            //     const description = item?.fields?.description || "No Description"; // Fallback if description is missing
+            //     const date = item?.fields?.date || "No Date"; // Fallback if date is missing
+            //     return `${title}. ${description}. Date - ${date}.\n`;
+            // }).join(', ')
         }
         return { success: true, data: result };
     } catch (error) {
