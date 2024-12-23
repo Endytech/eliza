@@ -6,7 +6,6 @@ import {
 export const getNews = async (
     data: {
     brn_host: string;
-    bot_id: string;
     collectionId: string;
     offset?: number;
     limit?: number;
@@ -14,7 +13,7 @@ export const getNews = async (
 runtime: IAgentRuntime
 ): Promise<{
     success: boolean;
-    data?: string[];
+    data?: string;
     error?: any;
 }> => {
     elizaLogger.info("Get news with option:", data);
@@ -37,12 +36,13 @@ runtime: IAgentRuntime
                 `Get news failed: ${response.statusText}`
             );
         }
-
         const newsFetch = await response.json();
-        elizaLogger.info("newsFetch", newsFetch);
-        elizaLogger.info("newsFetch.items", newsFetch.items);
-
-        return { success: true, data: newsFetch.items };
+        elizaLogger.info("newsFetch.items.length", newsFetch.items.length);
+        let data = '';
+        if (newsFetch.items && newsFetch.items.length > 0) {
+            data = newsFetch.items.map(item => `${item.field.description}. Date - ${item.field.date}.\n`).join(', ');
+        }
+        return { success: true, data };
     } catch (error) {
         console.error(error);
         return { success: false, error: error };
