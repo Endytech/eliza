@@ -38,11 +38,11 @@ runtime: IAgentRuntime
         }
         const newsFetch = await response.json();
         elizaLogger.info("newsFetch.items.length", newsFetch.items.length);
-        let data = '';
+        let result = '';
         if (newsFetch.items && newsFetch.items.length > 0) {
-            data = newsFetch.items.map(item => `${item.field.description}. Date - ${item.field.date}.\n`).join(', ');
+            result = newsFetch.items.map(item => `${item.field.description}. Date - ${item.field.date}.\n`).join(', ');
         }
-        return { success: true, data };
+        return { success: true, data: result };
     } catch (error) {
         console.error(error);
         return { success: false, error: error };
