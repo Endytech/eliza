@@ -201,7 +201,6 @@ const imageGeneration: Action = {
                     image
                 );
 
-                }
                 const text = (runtime.imageModelProvider === ModelProviderName.HEURIST) ? image : "...";
 
                 callback(
