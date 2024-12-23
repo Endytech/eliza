@@ -153,65 +153,46 @@ export class ClientBase extends EventEmitter {
     }
 
     async init() {
+        //test
         const username = this.runtime.getSetting("TWITTER_USERNAME");
-        const password = this.runtime.getSetting("TWITTER_PASSWORD");
-        const email = this.runtime.getSetting("TWITTER_EMAIL");
-        let retries = parseInt(
-            this.runtime.getSetting("TWITTER_RETRY_LIMIT") || "5",
-            10
-        );
-        const twitter2faSecret =
-            this.runtime.getSetting("TWITTER_2FA_SECRET") || undefined;
 
         if (!username) {
             throw new Error("Twitter username not configured");
         }
+        // Check for Twitter cookies
+        if (this.runtime.getSetting("TWITTER_COOKIES")) {
+            const cookiesArray = JSON.parse(
+                this.runtime.getSetting("TWITTER_COOKIES")
+            );
 
-        const cachedCookies = await this.getCachedCookies(username);
-
-        if (cachedCookies) {
-            elizaLogger.info("Using cached cookies");
-            await this.setCookiesFromArray(cachedCookies);
+            await this.setCookiesFromArray(cookiesArray);
+        } else {
+            const cachedCookies = await this.getCachedCookies(username);
+            if (cachedCookies) {
+                await this.setCookiesFromArray(cachedCookies);
+            }
         }
 
         elizaLogger.log("Waiting for Twitter login");
-        while (retries > 0) {
-            try {
-                await this.twitterClient.login(
-                    username,
-                    password,
-                    email,
-                    twitter2faSecret
-                );
-                if (await this.twitterClient.isLoggedIn()) {
-                    elizaLogger.info("Successfully logged in.");
-                    if (!cachedCookies) {
-                        elizaLogger.info("Caching cookies");
-                        await this.cacheCookies(
-                            username,
-                            await this.twitterClient.getCookies()
-                        );
-                    }
-                    break;
-                }
-            } catch (error) {
-                elizaLogger.error(`Login attempt failed: ${error.message}`);
-            }
-
-            retries--;
-            elizaLogger.error(
-                `Failed to login to Twitter. Retrying... (${retries} attempts left)`
+        while (true) {
+            await this.twitterClient.login(
+                username,
+                this.runtime.getSetting("TWITTER_PASSWORD"),
+                this.runtime.getSetting("TWITTER_EMAIL"),
+                this.runtime.getSetting("TWITTER_2FA_SECRET") || undefined
             );
 
-            if (retries === 0) {
-                elizaLogger.error(
-                    "Max retries reached. Exiting login process."
-                );
-                throw new Error("Twitter login failed after maximum retries.");
+            if (await this.twitterClient.isLoggedIn()) {
+                const cookies = await this.twitterClient.getCookies();
+                await this.cacheCookies(username, cookies);
+                break;
             }
+
+            elizaLogger.error("Failed to login to Twitter trying again...");
 
             await new Promise((resolve) => setTimeout(resolve, 2000));
         }
+
         // Initialize Twitter profile
         this.profile = await this.fetchProfile(username);
 
@@ -248,10 +229,7 @@ export class ClientBase extends EventEmitter {
 
     async fetchHomeTimeline(count: number): Promise<Tweet[]> {
         elizaLogger.debug("fetching home timeline");
-        const homeTimeline = await this.twitterClient.fetchHomeTimeline(
-            count,
-            []
-        );
+        const homeTimeline = await this.twitterClient.fetchHomeTimeline(count, []);
 
         elizaLogger.debug(homeTimeline, { depth: Infinity });
         const processedTimeline = homeTimeline
@@ -261,7 +239,8 @@ export class ClientBase extends EventEmitter {
                 const obj = {
                     id: tweet.id,
                     name:
-                        tweet.name ?? tweet?.user_results?.result?.legacy.name,
+                        tweet.name ??
+                        tweet?.user_results?.result?.legacy.name,
                     username:
                         tweet.username ??
                         tweet.core?.user_results?.result?.legacy.screen_name,
@@ -270,12 +249,8 @@ export class ClientBase extends EventEmitter {
                         tweet.inReplyToStatusId ??
                         tweet.legacy?.in_reply_to_status_id_str ??
                         null,
-                    timestamp:
-                        new Date(tweet.legacy?.created_at).getTime() / 1000,
-                    createdAt:
-                        tweet.createdAt ??
-                        tweet.legacy?.created_at ??
-                        tweet.core?.user_results?.result?.legacy.created_at,
+                    timestamp: new Date(tweet.legacy?.created_at).getTime() / 1000,
+                    createdAt: tweet.createdAt ?? tweet.legacy?.created_at ?? tweet.core?.user_results?.result?.legacy.created_at,
                     userId: tweet.userId ?? tweet.legacy?.user_id_str,
                     conversationId:
                         tweet.conversationId ??
@@ -308,12 +283,9 @@ export class ClientBase extends EventEmitter {
 
     async fetchTimelineForActions(count: number): Promise<Tweet[]> {
         elizaLogger.debug("fetching timeline for actions");
-        const homeTimeline = await this.twitterClient.fetchHomeTimeline(
-            count,
-            []
-        );
+        const homeTimeline = await this.twitterClient.fetchHomeTimeline(count, []);
 
-        return homeTimeline.map((tweet) => ({
+        return homeTimeline.map(tweet => ({
             id: tweet.rest_id,
             name: tweet.core?.user_results?.result?.legacy?.name,
             username: tweet.core?.user_results?.result?.legacy?.screen_name,
@@ -325,16 +297,10 @@ export class ClientBase extends EventEmitter {
             permanentUrl: `https://twitter.com/${tweet.core?.user_results?.result?.legacy?.screen_name}/status/${tweet.rest_id}`,
             hashtags: tweet.legacy?.entities?.hashtags || [],
             mentions: tweet.legacy?.entities?.user_mentions || [],
-            photos:
-                tweet.legacy?.entities?.media?.filter(
-                    (media) => media.type === "photo"
-                ) || [],
+            photos: tweet.legacy?.entities?.media?.filter(media => media.type === "photo") || [],
             thread: tweet.thread || [],
             urls: tweet.legacy?.entities?.urls || [],
-            videos:
-                tweet.legacy?.entities?.media?.filter(
-                    (media) => media.type === "video"
-                ) || [],
+            videos: tweet.legacy?.entities?.media?.filter(media => media.type === "video") || []
         }));
     }
 
@@ -460,10 +426,10 @@ export class ClientBase extends EventEmitter {
                         source: "twitter",
                         inReplyTo: tweet.inReplyToStatusId
                             ? stringToUuid(
-                                  tweet.inReplyToStatusId +
-                                      "-" +
-                                      this.runtime.agentId
-                              )
+                                tweet.inReplyToStatusId +
+                                "-" +
+                                this.runtime.agentId
+                            )
                             : undefined,
                     } as Content;
 
@@ -503,11 +469,10 @@ export class ClientBase extends EventEmitter {
         }
 
         const timeline = await this.fetchHomeTimeline(cachedTimeline ? 10 : 50);
-        const username = this.runtime.getSetting("TWITTER_USERNAME");
 
         // Get the most recent 20 mentions and interactions
         const mentionsAndInteractions = await this.fetchSearchTweets(
-            `@${username}`,
+            `@${this.runtime.getSetting("TWITTER_USERNAME")}`,
             20,
             SearchMode.Latest
         );
@@ -741,8 +706,8 @@ export class ClientBase extends EventEmitter {
                         typeof this.runtime.character.bio === "string"
                             ? (this.runtime.character.bio as string)
                             : this.runtime.character.bio.length > 0
-                              ? this.runtime.character.bio[0]
-                              : "",
+                                ? this.runtime.character.bio[0]
+                                : "",
                     nicknames:
                         this.runtime.character.twitterProfile?.nicknames || [],
                 } satisfies TwitterProfile;
