@@ -1,4 +1,4 @@
-[@ai16z/eliza v0.1.5-alpha.3](../index.md) / ISpeechService
+[@elizaos/core v0.1.6-alpha.4](../index.md) / ISpeechService
 
 # Interface: ISpeechService
 
@@ -24,7 +24,7 @@
 
 #### Defined in
 
-[packages/core/src/types.ts:968](https://github.com/monilpat/eliza/blob/main/packages/core/src/types.ts#L968)
+[packages/core/src/types.ts:1016](https://github.com/elizaos/eliza/blob/main/packages/core/src/types.ts#L1016)
 
 ## Methods
 
@@ -48,9 +48,9 @@ Add abstract initialize method that must be implemented by derived classes
 
 #### Defined in
 
-[packages/core/src/types.ts:973](https://github.com/monilpat/eliza/blob/main/packages/core/src/types.ts#L973)
+[packages/core/src/types.ts:1021](https://github.com/elizaos/eliza/blob/main/packages/core/src/types.ts#L1021)
 
-***
+---
 
 ### getInstance()
 
@@ -62,9 +62,9 @@ Add abstract initialize method that must be implemented by derived classes
 
 #### Defined in
 
-[packages/core/src/types.ts:1111](https://github.com/monilpat/eliza/blob/main/packages/core/src/types.ts#L1111)
+[packages/core/src/types.ts:1165](https://github.com/elizaos/eliza/blob/main/packages/core/src/types.ts#L1165)
 
-***
+---
 
 ### generate()
 
@@ -82,4 +82,4 @@ Add abstract initialize method that must be implemented by derived classes
 
 #### Defined in
 
-[packages/core/src/types.ts:1112](https://github.com/monilpat/eliza/blob/main/packages/core/src/types.ts#L1112)
+[packages/core/src/types.ts:1166](https://github.com/elizaos/eliza/blob/main/packages/core/src/types.ts#L1166)

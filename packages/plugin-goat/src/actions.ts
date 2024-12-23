@@ -14,8 +14,8 @@ import {
     ModelClass,
     type State,
     composeContext,
-    generateObjectV2,
-} from "@ai16z/eliza";
+    generateObject,
+} from "@elizaos/core";
 
 type GetOnChainActionsParams<TWalletClient extends WalletClient> = {
     wallet: TWalletClient;
@@ -125,7 +125,7 @@ async function generateParameters(
     context: string,
     tool: Tool
 ): Promise<unknown> {
-    const { object } = await generateObjectV2({
+    const { object } = await generateObject({
         runtime,
         context,
         modelClass: ModelClass.LARGE,
