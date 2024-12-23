@@ -202,7 +202,7 @@ export class TwitterPostClient {
     private async generateNewTweet() {
         elizaLogger.log("Generating new tweet");
 
-        // try {
+        try {
             const roomId = stringToUuid(
                 "twitter_generate_room-" + this.client.profile.username
             );
@@ -343,7 +343,7 @@ export class TwitterPostClient {
                 elizaLogger.error("Image generation failed or returned no data.");
             }
 
-            // try {
+            try {
                 elizaLogger.log(`Posting new tweet:\n ${cleanedContent}`);
 
                 let body = {}
@@ -421,12 +421,12 @@ export class TwitterPostClient {
                     embedding: getEmbeddingZeroVector(),
                     createdAt: tweet.timestamp,
                 });
-            // } catch (error) {
-            //     elizaLogger.error("Error sending tweet:", error);
-            // }
-        // } catch (error) {
-        //     elizaLogger.error("Error generating new tweet:", error);
-        // }
+            } catch (error) {
+                elizaLogger.error("Error sending tweet:", error);
+            }
+        } catch (error) {
+            elizaLogger.error("Error generating new tweet:", error);
+        }
     }
 
     private async generateTweetContent(
