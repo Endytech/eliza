@@ -40,7 +40,7 @@ runtime: IAgentRuntime
         elizaLogger.info("newsFetch.items.length", newsFetch.items.length);
         let result = '';
         if (newsFetch.items && newsFetch.items.length > 0) {
-            result = newsFetch.items.map(item => `${item?.field?.title}. ${item?.field?.description}. Date - ${item?.field?.date}.\n`).join(', ');
+            result = newsFetch.items.map((item) => `${item?.fields?.title}. ${item?.fields?.description}. Date - ${item?.fields?.date}.\n`).join(', ');
         }
         return { success: true, data: result };
     } catch (error) {
