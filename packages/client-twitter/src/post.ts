@@ -215,7 +215,7 @@ export class TwitterPostClient {
 
             const topics = this.runtime.character.topics.join(", ");
 
-            const brnCollectionData = await getBrnCollectionItems(
+            const brnCollectionDataFetch = await getBrnCollectionItems(
                 {
                     brn_host: this.runtime.getSetting("BRN_HOST"),
                     collectionId: this.runtime.getSetting("BRN_NEWS_COLLECTION_ID"),
@@ -224,7 +224,7 @@ export class TwitterPostClient {
                 },
                 this.runtime
             );
-
+            const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
             const state = await this.runtime.composeState(
                 {
                     userId: this.runtime.agentId,
