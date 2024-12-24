@@ -113,7 +113,6 @@ export class TelegramClient {
                     },
                     this.runtime
                 );
-
                 elizaLogger.info("collectionData", collectionData);
 
                 if (this.tgTrader) {

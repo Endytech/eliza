@@ -37,7 +37,7 @@ runtime: IAgentRuntime
             );
         }
         const itemsFetch = await response.json();
-        elizaLogger.info("newsFetch.items.length", newsFetch.items.length);
+        elizaLogger.info("newsFetch.items.length", itemsFetch.items.length);
         let result = '';
         if (itemsFetch.items && itemsFetch.items.length > 0) {
             const items = itemsFetch.items.map((item) => {
