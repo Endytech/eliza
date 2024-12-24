@@ -18,7 +18,7 @@ import { buildConversationThread } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 import { saveBase64Image, saveHeuristImage } from "../../plugin-image-generation/src/index.ts";
-import { getNews } from "../../brn-plugin/api.ts";
+import {getBrnCollectionItems} from "../../brn-plugin/api.ts";
 import fs from "fs";
 
 const twitterPostTemplate = `
@@ -108,16 +108,6 @@ export class TwitterPostClient {
         if (!this.client.profile) {
             await this.client.init();
         }
-        // const news = await getNews(
-        //     {
-        //         brn_host: this.runtime.getSetting("BRN_HOST"),
-        //         collectionId: this.runtime.getSetting("BRN_NEWS_COLLECTION_ID"),
-        //         offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
-        //         limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 100,
-        //     },
-        //     this.runtime
-        // );
-        // elizaLogger.info("news", news);
         const generateNewTweetLoop = async () => {
             const lastPost = await this.runtime.cacheManager.get<{
                 timestamp: number;
@@ -225,15 +215,15 @@ export class TwitterPostClient {
 
             const topics = this.runtime.character.topics.join(", ");
 
-            // const news = await getNews(
-            //     {
-            //         brn_host: this.runtime.getSetting("BRN_HOST"),
-            //         collectionId: this.runtime.getSetting("BRN_NEWS_COLLECTION_ID"),
-            //         offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
-            //         limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 100,
-            //     },
-            //     this.runtime
-            // );
+            const brnCollectionData = await getBrnCollectionItems(
+                {
+                    brn_host: this.runtime.getSetting("BRN_HOST"),
+                    collectionId: this.runtime.getSetting("BRN_NEWS_COLLECTION_ID"),
+                    offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
+                    limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 100,
+                },
+                this.runtime
+            );
 
             const state = await this.runtime.composeState(
                 {
@@ -247,7 +237,7 @@ export class TwitterPostClient {
                 },
                 {
                     twitterUserName: this.client.profile.username,
-                    // news,
+                    brnCollectionData,
                 }
             );
 

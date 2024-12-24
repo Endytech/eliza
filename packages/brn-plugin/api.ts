@@ -16,7 +16,7 @@ runtime: IAgentRuntime
     data?: string;
     error?: any;
 }> => {
-    elizaLogger.info("Get news with option:", data);
+    elizaLogger.info("Get Brn collection with option:", data);
     const brnApiKey = runtime.getSetting("BRN_API_KEY");
 
     try {
@@ -33,11 +33,10 @@ runtime: IAgentRuntime
 
         if (!response.ok) {
             throw new Error(
-                `Get news failed: ${response.statusText}`
+                `Get Brn collection failed: ${response.statusText}`
             );
         }
         const itemsFetch = await response.json();
-        elizaLogger.info("newsFetch.items.length", itemsFetch.items.length);
         let result = '';
         if (itemsFetch.items && itemsFetch.items.length > 0) {
             const items = itemsFetch.items.map((item) => {
@@ -48,21 +47,6 @@ runtime: IAgentRuntime
                 };
             });
             result = JSON.stringify(items);
-            // result = itemsFetch.items.map((item) => `${item?.fields?.title}. ${item?.fields?.description}. Date - ${item?.fields?.date}.\n`).join(', ');
-            // for (const item of newsFetch.items){
-            //     elizaLogger.info("item", item);
-            //     const title = item?.fields?.title || "No Title"; // Fallback if title is missing
-            //     const description = item?.fields?.description || "No Description"; // Fallback if description is missing
-            //     const date = item?.fields?.date || "No Date"; // Fallback if date is missing
-            //     elizaLogger.info("result", `${title}. ${description}. Date - ${date}.\n`);
-            // }
-            // result = newsFetch.items.map((item) => {
-            //     elizaLogger.info("item", item);
-            //     const title = item?.fields?.title || "No Title"; // Fallback if title is missing
-            //     const description = item?.fields?.description || "No Description"; // Fallback if description is missing
-            //     const date = item?.fields?.date || "No Date"; // Fallback if date is missing
-            //     return `${title}. ${description}. Date - ${date}.\n`;
-            // }).join(', ')
         }
         return { success: true, data: result };
     } catch (error) {

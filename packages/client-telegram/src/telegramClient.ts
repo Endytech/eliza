@@ -3,7 +3,6 @@ import { message } from "telegraf/filters";
 import { IAgentRuntime, elizaLogger } from "@elizaos/core";
 import { MessageManager } from "./messageManager.ts";
 import { getOrCreateRecommenderInBe } from "./getOrCreateRecommenderInBe.ts";
-import {getBrnCollectionItems, getCollectionItems, getNews} from "../../brn-plugin/api.ts";
 
 export class TelegramClient {
     private bot: Telegraf<Context>;
@@ -103,17 +102,6 @@ export class TelegramClient {
                 if (!(await this.isGroupAuthorized(ctx))) {
                     return;
                 }
-
-                const collectionData = await getBrnCollectionItems(
-                    {
-                        brn_host: this.runtime.getSetting("BRN_HOST"),
-                        collectionId: this.runtime.getSetting("BRN_NEWS_COLLECTION_ID"),
-                        offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
-                        limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 100,
-                    },
-                    this.runtime
-                );
-                elizaLogger.info("collectionData", collectionData);
 
                 if (this.tgTrader) {
                     const userId = ctx.from?.id.toString();
