@@ -3,7 +3,7 @@ import {
     IAgentRuntime,
 } from "@elizaos/core";
 
-export const getNews = async (
+export const getBrnCollectionItems = async (
     data: {
     brn_host: string;
     collectionId: string;
@@ -36,11 +36,19 @@ runtime: IAgentRuntime
                 `Get news failed: ${response.statusText}`
             );
         }
-        const newsFetch = await response.json();
+        const itemsFetch = await response.json();
         elizaLogger.info("newsFetch.items.length", newsFetch.items.length);
         let result = '';
-        if (newsFetch.items && newsFetch.items.length > 0) {
-            result = newsFetch.items.map((item) => `${item?.fields?.title}. ${item?.fields?.description}. Date - ${item?.fields?.date}.\n`).join(', ');
+        if (itemsFetch.items && itemsFetch.items.length > 0) {
+            const items = itemsFetch.items.map((item) => {
+                return {
+                    title: item?.fields?.title,
+                    description: item?.fields?.description,
+                    date: item?.fields?.date
+                };
+            });
+            result = JSON.stringify(items);
+            // result = itemsFetch.items.map((item) => `${item?.fields?.title}. ${item?.fields?.description}. Date - ${item?.fields?.date}.\n`).join(', ');
             // for (const item of newsFetch.items){
             //     elizaLogger.info("item", item);
             //     const title = item?.fields?.title || "No Title"; // Fallback if title is missing

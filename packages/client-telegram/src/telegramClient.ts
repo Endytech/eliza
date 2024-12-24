@@ -3,7 +3,7 @@ import { message } from "telegraf/filters";
 import { IAgentRuntime, elizaLogger } from "@elizaos/core";
 import { MessageManager } from "./messageManager.ts";
 import { getOrCreateRecommenderInBe } from "./getOrCreateRecommenderInBe.ts";
-import { getNews } from "../../brn-plugin/api.ts";
+import {getBrnCollectionItems, getCollectionItems, getNews} from "../../brn-plugin/api.ts";
 
 export class TelegramClient {
     private bot: Telegraf<Context>;
@@ -104,7 +104,7 @@ export class TelegramClient {
                     return;
                 }
 
-                const news = await getNews(
+                const collectionData = await getBrnCollectionItems(
                     {
                         brn_host: this.runtime.getSetting("BRN_HOST"),
                         collectionId: this.runtime.getSetting("BRN_NEWS_COLLECTION_ID"),
@@ -113,8 +113,8 @@ export class TelegramClient {
                     },
                     this.runtime
                 );
-                
-                elizaLogger.info("news", news);
+
+                elizaLogger.info("collectionData", collectionData);
 
                 if (this.tgTrader) {
                     const userId = ctx.from?.id.toString();
