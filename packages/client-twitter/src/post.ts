@@ -247,7 +247,7 @@ export class TwitterPostClient {
                 },
                 {
                     twitterUserName: this.client.profile.username,
-                    news,
+                    // news,
                 }
             );
 
