@@ -214,16 +214,21 @@ export class TwitterPostClient {
             );
 
             const topics = this.runtime.character.topics.join(", ");
+            const brnHost = this.runtime.getSetting("BRN_HOST");
+            const collectionId = this.runtime.getSetting("BRN_NEWS_COLLECTION_ID");
 
-            const brnCollectionDataFetch = await getBrnCollectionItems(
-                {
-                    brn_host: this.runtime.getSetting("BRN_HOST"),
-                    collectionId: this.runtime.getSetting("BRN_NEWS_COLLECTION_ID"),
-                    offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
-                    limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 100,
-                },
-                this.runtime
-            );
+            let brnCollectionDataFetch = {};
+            if (brnHost && collectionId) {
+                brnCollectionDataFetch = await getBrnCollectionItems(
+                    {
+                        brn_host: brnHost,
+                        collectionId: collectionId,
+                        offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
+                        limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 100,
+                    },
+                    this.runtime
+                );
+            }
             const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
             const state = await this.runtime.composeState(
                 {
