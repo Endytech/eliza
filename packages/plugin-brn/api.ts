@@ -115,7 +115,7 @@ runtime: IAgentRuntime
                 elizaLogger.error(`Get Brn News collection '${collectionId}' failed:  Error - ${error}`)
             }
         }
-        if (wasError && (result === '')) throw new Error(`Errors were received when getting elements of all collections`);
+        if (wasError && (result === '')) throw new Error(`Errors were received when getting items of all collections`);
         return { success: true, data: result };
     } catch (error) {
         elizaLogger.error(`Get Brn News failed. Error - ${error}`);
