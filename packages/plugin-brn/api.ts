@@ -45,6 +45,7 @@ export const getBrnCollectionItems = async (
     limit?: number;
     sortField?: string;
     sortDirection?: string;
+    setViewed?: boolean;
     viewed?: string;
 },
 runtime: IAgentRuntime
@@ -74,7 +75,7 @@ runtime: IAgentRuntime
     //         );
     //     }
     //     const itemsFetch = await response.json();
-        const itemsFetch = getCollectionItems(data.brnHost, data.collectionId, brnApiKey, data.offset, data.limit, data.sortField, data.sortDirection, data.viewed)
+        const itemsFetch = await getCollectionItems(data.brnHost, data.collectionId, brnApiKey, data.offset, data.limit, data.sortField, data.sortDirection, data.viewed)
 
         let result = '';
         if (itemsFetch.items && itemsFetch.items.length > 0) {
@@ -86,28 +87,30 @@ runtime: IAgentRuntime
                 };
             });
             result = JSON.stringify(items);
-            for (const item of itemsFetch.items) {
-                try {
-                    const response = await fetch(
-                        `${data.brnHost}/item/${item.item_id}/view`,
-                        {
-                            method: "POST",
-                            headers: {
-                                "x-access-token": brnApiKey,
-                                "Content-Type": "application/json",
-                            },
-                            body: JSON.stringify({
-                                viewed: true,
-                            }),
-                        }
-                    );
-                    if (!response.ok) {
-                        throw new Error(
-                            `Set View for item: ${item.item_id}} of the Brn collection failed: ${response.statusText}`
+            if (data.setViewed) {
+                for (const item of itemsFetch.items) {
+                    try {
+                        const response = await fetch(
+                            `${data.brnHost}/item/${item.item_id}/view`,
+                            {
+                                method: "POST",
+                                headers: {
+                                    "x-access-token": brnApiKey,
+                                    "Content-Type": "application/json",
+                                },
+                                body: JSON.stringify({
+                                    viewed: true,
+                                }),
+                            }
                         );
+                        if (!response.ok) {
+                            throw new Error(
+                                `Set View for item: ${item.item_id}} of the Brn collection failed: ${response.statusText}`
+                            );
+                        }
+                    } catch (error) {
+                        console.error(error);
                     }
-                } catch (error) {
-                    console.error(error);
                 }
             }
         }

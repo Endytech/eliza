@@ -1000,7 +1000,7 @@ export class MessageManager {
 
             let brnCollectionDataFetch = {};
             if (brnHost && collectionId) {
-                // Sorted by fields.date, newest on top, only not viewed
+                // Sorted by fields.date, newest on top, only not viewed. And set viewed
                 brnCollectionDataFetch = await getBrnCollectionItems(
                     {
                         brnHost,
@@ -1009,6 +1009,7 @@ export class MessageManager {
                         limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
                         sortField: 'date',
                         sortDirection: '-1',
+                        setViewed: false,
                         viewed: '0'
                     },
                     this.runtime
