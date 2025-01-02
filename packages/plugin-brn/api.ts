@@ -77,18 +77,15 @@ runtime: IAgentRuntime
     error?: any;
 }> => {
     try {
-        elizaLogger.info("Get Brn collection with option:", data);
         const collectionIdsArray = data.collectionIds.split(',').map(id => id.trim());
         const brnApiKeysArray = data.brnApiKeys.split(',').map(id => id.trim());
-        elizaLogger.info("collectionIdsArray", collectionIdsArray);
-        elizaLogger.info("brnApiKeysArray", brnApiKeysArray);
+        elizaLogger.info("Get Brn collection with option:", data);
+
         let result = '';
         let wasError = false;
         for (const [index, collectionId] of collectionIdsArray.entries()) {
             try {
                 const brnApiKey = brnApiKeysArray[index];
-                elizaLogger.info("collectionId", collectionId);
-                elizaLogger.info("brnApiKey", brnApiKey);
                 const itemsFetch = await getCollectionItems(data.brnHost, collectionId, brnApiKey, data.offset, data.limit, data.sortField, data.sortDirection, data.viewed)
                 if (itemsFetch.items && itemsFetch.items.length > 0) {
                     const items = itemsFetch.items.map((item) => {
@@ -99,7 +96,6 @@ runtime: IAgentRuntime
                         };
                     });
                     result += JSON.stringify(items);
-                    elizaLogger.info("data.setViewed", data.setViewed);
                     if (data.setViewed) {
                         for (const item of itemsFetch.items) {
                             try {

@@ -995,31 +995,6 @@ export class MessageManager {
             // Handle images
             const imageInfo = await this.processImage(message);
 
-            const brnHost = this.runtime.getSetting("BRN_HOST");
-            const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
-            const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
-
-            let brnCollectionDataFetch = {};
-            if (brnHost && collectionIds && brnApiKeys) {
-                // Sorted by fields.date, newest on top, only not viewed. And set viewed
-                brnCollectionDataFetch = await getBrnNews(
-                    {
-                        brnHost,
-                        collectionIds,
-                        brnApiKeys,
-                        offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
-                        limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
-                        sortField: 'date',
-                        sortDirection: '-1',
-                        setViewed: true,
-                        viewed: '0'
-                    },
-                    this.runtime
-                );
-            }
-            const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
-            elizaLogger.info("brnCollectionData", brnCollectionData);
-
             // Get text or caption
             let messageText = "";
             if ("text" in message) {
