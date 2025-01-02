@@ -427,12 +427,16 @@ export class TwitterPostClient {
 
             let brnCollectionDataFetch = {};
             if (brnHost && collectionId) {
+                // Sorted by fields.date, newest on top, only not viewed
                 brnCollectionDataFetch = await getBrnCollectionItems(
                     {
-                        brn_host: brnHost,
-                        collectionId: collectionId,
+                        brnHost,
+                        collectionId,
                         offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
                         limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
+                        sortField: 'date',
+                        sortDirection: '-1',
+                        viewed: '0'
                     },
                     this.runtime
                 );
