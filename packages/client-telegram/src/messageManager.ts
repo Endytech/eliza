@@ -998,7 +998,8 @@ export class MessageManager {
             const brnHost = this.runtime.getSetting("BRN_HOST");
             const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
             const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
-
+            elizaLogger.info("collectionIds", collectionIds);
+            elizaLogger.info("brnApiKeys", brnApiKeys);
             let brnCollectionDataFetch = {};
             if (brnHost && collectionIds && brnApiKeys) {
                 // Sorted by fields.date, newest on top, only not viewed. And set viewed
