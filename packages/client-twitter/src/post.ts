@@ -18,7 +18,7 @@ import { buildConversationThread } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 import { saveBase64Image, saveHeuristImage } from "../../plugin-image-generation/src/index.ts";
-import {getBrnCollectionItems} from "../../plugin-brn/api.ts";
+import { getBrnNews } from "../../plugin-brn/api.ts";
 import fs from "fs";
 import { Buffer } from "buffer";
 
@@ -423,15 +423,17 @@ export class TwitterPostClient {
             const topics = this.runtime.character.topics.join(", ");
 
             const brnHost = this.runtime.getSetting("BRN_HOST");
-            const collectionId = this.runtime.getSetting("BRN_NEWS_COLLECTION_ID");
+            const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
+            const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
 
             let brnCollectionDataFetch = {};
-            if (brnHost && collectionId) {
+            if (brnHost && collectionIds && brnApiKeys) {
                 // Sorted by fields.date, newest on top, only not viewed. And set viewed
-                brnCollectionDataFetch = await getBrnCollectionItems(
+                brnCollectionDataFetch = await getBrnNews(
                     {
                         brnHost,
-                        collectionId,
+                        collectionIds,
+                        brnApiKeys,
                         offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
                         limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
                         sortField: 'date',

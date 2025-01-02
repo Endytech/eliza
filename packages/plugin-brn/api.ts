@@ -19,7 +19,6 @@ export async function getCollectionItems(
     if (sortField) queryParams += `&sort_field=${sortField}`;
     if (sortDirection) queryParams += `&sort_direction=${sortDirection}`;
     if (viewed) queryParams += `&viewed=${viewed}`;
-    elizaLogger.info("url", `${brnHost}/items/${collectionId}?${queryParams}`);
     const response = await fetch(
         `${brnHost}/items/${collectionId}?${queryParams}`,
         {
@@ -30,17 +29,40 @@ export async function getCollectionItems(
             },
         }
     );
-    if (!response.ok) throw new Error(`Get Brn collection request failed: ${response.statusText}`);
-    const itemsFetch = await response.json();
-    elizaLogger.info("itemsFetch", itemsFetch);
-    if (!itemsFetch.status) throw new Error(`Get Brn collection failed: status ${itemsFetch.status}, error - ${itemsFetch.error}`);
-    return itemsFetch;
+    if (!response.ok) throw new Error(`Get Brn collection items request failed: ${response.statusText}`);
+    const responseFetch = await response.json();
+    if (!responseFetch.status) throw new Error(`Get Brn collection items failed: status ${responseFetch.status}, error - ${responseFetch.error}`);
+    return responseFetch;
 }
 
-export const getBrnCollectionItems = async (
+export async function setViewedCollectionItems(
+    brnHost: string,
+    itemId: string,
+    brnApiKey: string,
+): Promise<any> {
+    const response = await fetch(
+        `${brnHost}/item/${itemId}/view`,
+        {
+            method: "POST",
+            headers: {
+                "x-access-token": brnApiKey,
+                "Content-Type": "application/json",
+            },
+            body: JSON.stringify({
+                viewed: true,
+            }),
+        }
+    );
+    if (!response.ok) throw new Error(`Set View for item: ${itemId}} of the Brn collection request failed: ${response.statusText}`);
+    const responseFetch = await response.json();
+    if (!responseFetch.status) throw new Error(`Set View for item: ${itemId}} of the Brn collection failed: status ${responseFetch.status}, error - ${responseFetch.error}`);
+}
+
+export const getBrnNews = async (
     data: {
     brnHost: string;
-    collectionId: string;
+    collectionIds: string;
+    brnApiKeys: string;
     offset?: number;
     limit?: number;
     sortField?: string;
@@ -54,69 +76,46 @@ runtime: IAgentRuntime
     data?: string;
     error?: any;
 }> => {
-    elizaLogger.info("Get Brn collection with option:", data);
-    const brnApiKey = runtime.getSetting("BRN_API_KEY");
-    // `${data.brnHost}/items/${data.collectionId}?sort_field=date&sort_direction=-1&viewed=0&text_cut=false&limit=${data.limit}&offset=${data.offset}`,
     try {
-    //     const response = await fetch(
-    //         `${data.brnHost}/items/${data.collectionId}?sort_field=date&sort_direction=-1&viewed=0&text_cut=false&limit=${data.limit}&offset=${data.offset}`,
-    //         {
-    //             method: "GET",
-    //             headers: {
-    //                 "x-access-token": brnApiKey,
-    //                 "Content-Type": "application/json",
-    //             },
-    //         }
-    //     );
-    //
-    //     if (!response.ok) {
-    //         throw new Error(
-    //             `Get Brn collection failed: ${response.statusText}`
-    //         );
-    //     }
-    //     const itemsFetch = await response.json();
-        const itemsFetch = await getCollectionItems(data.brnHost, data.collectionId, brnApiKey, data.offset, data.limit, data.sortField, data.sortDirection, data.viewed)
-
+        elizaLogger.info("Get Brn collection with option:", data);
+        const collectionIdsArray = data.collectionIds.split(',').map(id => id.trim());
+        const brnApiKeysArray = data.brnApiKeys.split(',').map(id => id.trim());
+        elizaLogger.info("collectionIdsArray", collectionIdsArray);
+        elizaLogger.info("brnApiKeysArray", brnApiKeysArray);
         let result = '';
-        if (itemsFetch.items && itemsFetch.items.length > 0) {
-            const items = itemsFetch.items.map((item) => {
-                return {
-                    title: item?.fields?.title,
-                    description: item?.fields?.description,
-                    date: item?.fields?.date
-                };
-            });
-            result = JSON.stringify(items);
-            if (data.setViewed) {
-                for (const item of itemsFetch.items) {
-                    try {
-                        const response = await fetch(
-                            `${data.brnHost}/item/${item.item_id}/view`,
-                            {
-                                method: "POST",
-                                headers: {
-                                    "x-access-token": brnApiKey,
-                                    "Content-Type": "application/json",
-                                },
-                                body: JSON.stringify({
-                                    viewed: true,
-                                }),
+        for (const [index, collectionId] of collectionIdsArray.entries()) {
+            try {
+                const brnApiKey = brnApiKeysArray[index];
+                elizaLogger.info("collectionId", collectionId);
+                elizaLogger.info("brnApiKey", brnApiKey);
+                const itemsFetch = await getCollectionItems(data.brnHost, collectionId, brnApiKey, data.offset, data.limit, data.sortField, data.sortDirection, data.viewed)
+                if (itemsFetch.items && itemsFetch.items.length > 0) {
+                    const items = itemsFetch.items.map((item) => {
+                        return {
+                            title: item?.fields?.title,
+                            description: item?.fields?.description,
+                            date: item?.fields?.date
+                        };
+                    });
+                    result += JSON.stringify(items);
+                    elizaLogger.info("data.setViewed", data.setViewed);
+                    if (data.setViewed) {
+                        for (const item of itemsFetch.items) {
+                            try {
+                                await setViewedCollectionItems(data.brnHost, item.item_id, brnApiKey)
+                            } catch (error) {
+                                elizaLogger.error(error);
                             }
-                        );
-                        if (!response.ok) {
-                            throw new Error(
-                                `Set View for item: ${item.item_id}} of the Brn collection failed: ${response.statusText}`
-                            );
                         }
-                    } catch (error) {
-                        console.error(error);
                     }
                 }
+            } catch (error) {
+                elizaLogger.error(`Get Brn News collection '${collectionId}' failed:  Error - ${error}`)
             }
         }
         return { success: true, data: result };
     } catch (error) {
-        console.error(error);
+        elizaLogger.error(`Get Brn News failed. Error - ${error}`);
         return { success: false, error: error };
     }
 }

@@ -27,7 +27,7 @@ import {
 } from "./constants";
 
 import fs from "fs";
-import {getBrnCollectionItems} from "../../plugin-brn/api.ts";
+import { getBrnNews } from "../../plugin-brn/api.ts";
 
 const MAX_MESSAGE_LENGTH = 4096; // Telegram's max message length
 
@@ -996,15 +996,17 @@ export class MessageManager {
             const imageInfo = await this.processImage(message);
 
             const brnHost = this.runtime.getSetting("BRN_HOST");
-            const collectionId = this.runtime.getSetting("BRN_NEWS_COLLECTION_ID");
+            const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
+            const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
 
             let brnCollectionDataFetch = {};
-            if (brnHost && collectionId) {
+            if (brnHost && collectionIds && brnApiKeys) {
                 // Sorted by fields.date, newest on top, only not viewed. And set viewed
-                brnCollectionDataFetch = await getBrnCollectionItems(
+                brnCollectionDataFetch = await getBrnNews(
                     {
                         brnHost,
-                        collectionId,
+                        collectionIds,
+                        brnApiKeys,
                         offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
                         limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
                         sortField: 'date',
