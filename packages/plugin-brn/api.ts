@@ -83,6 +83,7 @@ runtime: IAgentRuntime
         elizaLogger.info("collectionIdsArray", collectionIdsArray);
         elizaLogger.info("brnApiKeysArray", brnApiKeysArray);
         let result = '';
+        let wasError = false;
         for (const [index, collectionId] of collectionIdsArray.entries()) {
             try {
                 const brnApiKey = brnApiKeysArray[index];
@@ -110,9 +111,11 @@ runtime: IAgentRuntime
                     }
                 }
             } catch (error) {
+                wasError = true;
                 elizaLogger.error(`Get Brn News collection '${collectionId}' failed:  Error - ${error}`)
             }
         }
+        if (wasError && (result === '')) throw new Error(`Errors were received when getting elements of all collections`);
         return { success: true, data: result };
     } catch (error) {
         elizaLogger.error(`Get Brn News failed. Error - ${error}`);
