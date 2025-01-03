@@ -39,15 +39,19 @@ app.post('/start-eliza', (request, response) => {
         if (!character) throw new Error('character required');
         const characterPath = `characters/${character}.character.json`;
         const logFile = `logs/logs_${path.basename(characterPath)}_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
-
+        console.log('logFile', logFile);
         const runningProcesses = readRunningProcesses();
+        console.log('runningProcesses', runningProcesses);
 
         // Check if process for this character is already running
         if (runningProcesses[characterPath]) {
             return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
         }
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
+        console.log('command', command);
+
         const process = exec(command, { cwd: '../../' });
+        console.log('process', process);
 
         // Save the process PID to the file
         runningProcesses[characterPath] = { pid: process.pid, logFile };
