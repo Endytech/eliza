@@ -8,6 +8,7 @@ import {
     stringToUuid,
     UUID,
     generateImage,
+    parseBooleanFromText
 } from "@elizaos/core";
 import { elizaLogger } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
@@ -539,7 +540,8 @@ export class TwitterPostClient {
             // Generate image by generated content
             const mediaData = [];
 
-            const twitterPostImageGen = Boolean(this.runtime.getSetting("TWITTER_POST_IMAGE_GEN"));
+            const twitterPostImageGen = parseBooleanFromText(this.runtime.getSetting("TWITTER_POST_IMAGE_GEN"));
+            elizaLogger.info(`TWITTER_POST_IMAGE_GEN: ${twitterPostImageGen}`);
             if (twitterPostImageGen) {
                 const imageSettings = this.runtime.getSetting("imageSettings");
                 const images = await generateImage(
