@@ -2,6 +2,7 @@ import express from 'express';
 import exec from 'child_process';
 import path from 'path';
 import fs from 'fs';
+import bodyParser from 'body-parser';
 // import export_ipmort_config from './_config';
 
 const app = express();

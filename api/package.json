@@ -14,7 +14,7 @@
   "author": "Andrey Tropynin",
   "license": "ISC",
   "dependencies": {
-    "body-parser": "^1.19.0",
+    "body-parser": "^1.20.3",
     "dotted": "^0.1.1",
     "express": "^4.17.1",
     "got": "^11.8.5",
