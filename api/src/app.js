@@ -47,10 +47,21 @@ app.post('/start-eliza', (request, response) => {
         if (runningProcesses[characterPath]) {
             return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
         }
+
+        // Resolve the root directory and logs directory
+        const rootDir = path.resolve('../../');
+        const logsDir = path.join(rootDir, 'logs');
+
+        // Ensure the logs directory exists
+        if (!existsSync(logsDir)) {
+            console.log('Does not exist logsDir', logsDir);
+            console.log('rootDir', rootDir);
+        }
+
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
         console.log('command', command);
 
-        const process = exec(command, { cwd: '../../' }, (error, stdout, stderr) => {
+        const process = exec(command, { rootDir: '../../' }, (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error run process: ${error.message}`);
                 return;
