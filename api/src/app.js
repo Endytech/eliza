@@ -57,13 +57,14 @@ app.post('/start-eliza', (request, response) => {
         // Ensure the logs directory exists
         if (!existsSync(logsDir)) {
             console.log('Does not exist logsDir', logsDir);
-            console.log('rootDir', rootDir);
         }
+        console.log('rootDir', rootDir);
+        console.log('logsDir', logsDir);
 
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
         console.log('command', command);
 
-        const process = exec(command, { rootDir: '../../' }, (error, stdout, stderr) => {
+        const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error run process: ${error.message}`);
                 return;
