@@ -51,7 +51,7 @@ app.post('/start-eliza', (request, response) => {
         }
 
         // Resolve the root directory and logs directory
-        const rootDir = path.resolve('../../');
+        const rootDir = path.resolve('../');
         const logsDir = path.join(rootDir, 'logs');
 
         // Ensure the logs directory exists
