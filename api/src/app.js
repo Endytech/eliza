@@ -1,5 +1,5 @@
 import express from 'express';
-import exec from 'child_process';
+import { exec } from 'child_process';
 import path from 'path';
 import fs from 'fs';
 import bodyParser from 'body-parser';
@@ -38,7 +38,7 @@ app.post('/start-eliza', (request, response) => {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
         const characterPath = `characters/${character}.character.json`;
-        const logFile = `logs/logs_${path.basename(characterPath)}_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+        const logFile = `logs/logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`;
         console.log('logFile', logFile);
         const runningProcesses = readRunningProcesses();
         console.log('runningProcesses', runningProcesses);
@@ -50,7 +50,16 @@ app.post('/start-eliza', (request, response) => {
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
         console.log('command', command);
 
-        const process = exec(command, { cwd: '../../' });
+        const process = exec(command, { cwd: '../../' }, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error run process: ${error.message}`);
+                return;
+            }
+            if (stderr) {
+                console.error(`Stderr when run process: ${stderr}`);
+            }
+            console.log(`Stdout: ${stdout}`);
+        });
         console.log('process', process);
 
         // Save the process PID to the file
