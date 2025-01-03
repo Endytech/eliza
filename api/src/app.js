@@ -6,6 +6,14 @@ import fs from 'fs';
 
 const app = express();
 const port = 3100;
+app.use((req, res, next) => {
+    res.header('Access-Control-Allow-Origin', '*');
+    res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
+    res.header('Access-Control-Allow-Headers', 'Content-Type');
+    next();
+});
+app.use(bodyParser.json({ limit: '1mb' }));
+app.use(bodyParser.urlencoded({ extended: false }));
 
 // File to store running process information
 const processFile = 'runningProcesses.json';
@@ -25,26 +33,33 @@ function writeRunningProcesses(processes) {
 
 // API to start Eliza with a specific character
 app.post('/start-eliza', (request, response) => {
-    const { query: { character } } = request;
-    if (!character) throw new Error('character required');
-    const characterPath = `characters/${character}.character.json`;
-    const logFile = `logs/logs_${path.basename(characterPath)}_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
+    try {
+        const { query: { character } } = request;
+        if (!character) throw new Error('character required');
+        const characterPath = `characters/${character}.character.json`;
+        const logFile = `logs/logs_${path.basename(characterPath)}_${new Date().toISOString().replace(/[:.]/g, '-')}.txt`;
 
-    const runningProcesses = readRunningProcesses();
+        const runningProcesses = readRunningProcesses();
 
-    // Check if process for this character is already running
-    if (runningProcesses[characterPath]) {
-        return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
+        // Check if process for this character is already running
+        if (runningProcesses[characterPath]) {
+            return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
+        }
+        const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
+        const process = exec(command, { cwd: '../../' });
+
+        // Save the process PID to the file
+        runningProcesses[characterPath] = { pid: process.pid, logFile };
+        writeRunningProcesses(runningProcesses);
+
+        console.log(`Eliza started for ${characterPath}`);
+        response.json({ status: true, message: "Eliza started", character: characterPath, logFile });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
     }
-    const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
-    const process = exec(command, { cwd: '../../' });
-
-    // Save the process PID to the file
-    runningProcesses[characterPath] = { pid: process.pid, logFile };
-    writeRunningProcesses(runningProcesses);
-
-    console.log(`Eliza started for ${characterPath}`);
-    response.json({ message: "Eliza started", character: characterPath, logFile });
 });
 
 // API to stop Eliza for a specific character
