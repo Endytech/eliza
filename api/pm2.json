@@ -1,0 +1,10 @@
+{
+	"apps" : [
+		{
+    		"name": "elaza_start_api",
+    		"script": "dist/app.js",
+    		"watch": false,
+    		"exec_mode": "fork"
+  		}
+  	]
+}
