@@ -1,4 +1,3 @@
 module.exports = {
-    botId: '',
     Host:'',
 };

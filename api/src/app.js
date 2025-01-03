@@ -2,7 +2,7 @@ import express from 'express';
 import exec from 'child_process';
 import path from 'path';
 import fs from 'fs';
-import export_ipmort_config from './_config';
+// import export_ipmort_config from './_config';
 
 const app = express();
 const port = 3100;
