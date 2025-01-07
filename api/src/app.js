@@ -41,7 +41,7 @@ app.get('/start-eliza', (request, response) => {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
         const characterPath = `characters/${character}.character.json`;
-        const logFile = `logs/logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`;
+        // const logFile = `logs/logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`;
         console.log('logFile', logFile);
         const runningProcesses = readRunningProcesses();
         console.log('runningProcesses', runningProcesses);
@@ -54,6 +54,8 @@ app.get('/start-eliza', (request, response) => {
         // Resolve the root directory and logs directory
         const rootDir = path.resolve('../');
         const logsDir = path.join(rootDir, 'logs');
+
+        const logFile = path.join(logsDir, `logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`);
 
         // Ensure the logs directory exists
         if (!existsSync(logsDir)) {
