@@ -149,7 +149,7 @@ app.get('/start-eliza', (request, response) => {
 //     }
 // });
 
-app.post('/stop-eliza', (req, res) => {
+app.post('/stop-eliza', (request, response) => {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
@@ -168,8 +168,10 @@ app.post('/stop-eliza', (req, res) => {
         writeRunningProcesses(runningProcesses);
         res.json({ message: "Eliza stopped", character: characterPath });
     } catch (error) {
-        console.error(`Failed to stop process for ${characterPath}:`, error.message);
-        res.status(500).json({ error: `Failed to stop process for ${characterPath}` });
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
     }
 });
 
