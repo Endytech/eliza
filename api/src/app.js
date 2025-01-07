@@ -47,7 +47,7 @@ app.get('/start-eliza', (request, response) => {
         console.log('runningProcesses', runningProcesses);
 
         // Check if process for this character is already running
-        if (runningProcesses[characterPath]) {
+        if (runningProcesses[character]) {
             return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
         }
 
@@ -100,10 +100,6 @@ app.get('/start-eliza', (request, response) => {
         process.stdout.pipe(logStream);
         process.stderr.pipe(logStream);
 
-// Save the process PID
-        runningProcesses[characterPath] = { pid: process.pid, logFile };
-        console.log(`Started process with PID: ${process.pid}`);
-
 // Handle process termination
         process.on('close', (code) => {
             console.log(`Process exited with code: ${code}`);
@@ -111,8 +107,9 @@ app.get('/start-eliza', (request, response) => {
         });
 
         // Save the process PID to the file
-        runningProcesses[characterPath] = { pid: process.pid, logFile };
+        runningProcesses[character] = { pid: process.pid, logFile };
         writeRunningProcesses(runningProcesses);
+        console.log(`Started process with PID: ${process.pid}`);
 
         console.log(`Eliza started for ${characterPath}`);
         response.json({ status: true, message: "Eliza started", character: characterPath, logFile });
@@ -153,24 +150,20 @@ app.get('/start-eliza', (request, response) => {
 // });
 
 app.post('/stop-eliza', (req, res) => {
-    const characterPath = req.query.characterPath;
-
-    if (!characterPath) {
-        return res.status(400).json({ error: "characterPath is required to stop Eliza" });
-    }
-
-    const runningProcesses = readRunningProcesses();
-    const processInfo = runningProcesses[characterPath];
-
-    if (!processInfo) {
-        return res.status(404).json({ error: `No running process found for ${characterPath}` });
-    }
-
-    // Kill the process
     try {
+        const { query: { character } } = request;
+        if (!character) throw new Error('character required');
+
+        const runningProcesses = readRunningProcesses();
+        const processInfo = runningProcesses[character];
+
+        if (!processInfo) {
+            return res.status(404).json({ error: `No running process found for ${characterPath}` });
+        }
+        // Kill the process
         process.kill(processInfo.pid);
         console.log(`Eliza stopped for ${characterPath}`);
-        delete runningProcesses[characterPath];
+        delete runningProcesses[character];
         writeRunningProcesses(runningProcesses);
         res.json({ message: "Eliza stopped", character: characterPath });
     } catch (error) {
