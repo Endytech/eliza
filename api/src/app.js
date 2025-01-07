@@ -5,6 +5,7 @@ import fs from 'fs';
 import { mkdirSync, existsSync } from 'fs';
 import * as path from 'path';
 import bodyParser from 'body-parser';
+import { spawn } from 'child_process';
 // import export_ipmort_config from './_config';
 
 const app = express();
@@ -35,7 +36,7 @@ function writeRunningProcesses(processes) {
 }
 
 // API to start Eliza with a specific character
-app.post('/start-eliza', (request, response) => {
+app.get('/start-eliza', (request, response) => {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
@@ -61,20 +62,51 @@ app.post('/start-eliza', (request, response) => {
         console.log('rootDir', rootDir);
         console.log('logsDir', logsDir);
 
-        const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
-        console.log('command', command);
+        // const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
+        // console.log('command', command);
 
-        const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error run process: ${error.message}`);
-                return;
-            }
-            if (stderr) {
-                console.error(`Stderr when run process: ${stderr}`);
-            }
-            console.log(`Stdout: ${stdout}`);
+        // const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
+        //     if (error) {
+        //         console.error(`Error run process: ${error.message}`);
+        //         return;
+        //     }
+        //     if (stderr) {
+        //         console.error(`Stderr when run process: ${stderr}`);
+        //     }
+        //     console.log(`Stdout: ${stdout}`);
+        // });
+        console.log('process', process);
+
+// Build the command
+        const command = `pnpm`;
+        const args = [
+            'start:debug',
+            `--characters=${characterPath}`,
+        ];
+        console.log('Command:', command, args);
+
+// Spawn the process
+        const process = spawn(command, args, {
+            cwd: rootDir,
+            shell: true, // Required for piping (`tee`)
+            stdio: ['inherit', 'pipe', 'pipe'], // Pipe output for logs
         });
         console.log('process', process);
+
+// Log stdout and stderr to a file
+        const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+        process.stdout.pipe(logStream);
+        process.stderr.pipe(logStream);
+
+// Save the process PID
+        runningProcesses[characterPath] = { pid: process.pid, logFile };
+        console.log(`Started process with PID: ${process.pid}`);
+
+// Handle process termination
+        process.on('close', (code) => {
+            console.log(`Process exited with code: ${code}`);
+            logStream.end();
+        });
 
         // Save the process PID to the file
         runningProcesses[characterPath] = { pid: process.pid, logFile };
@@ -91,6 +123,33 @@ app.post('/start-eliza', (request, response) => {
 });
 
 // API to stop Eliza for a specific character
+// app.post('/stop-eliza', (req, res) => {
+//     const characterPath = req.query.characterPath;
+//
+//     if (!characterPath) {
+//         return res.status(400).json({ error: "characterPath is required to stop Eliza" });
+//     }
+//
+//     const runningProcesses = readRunningProcesses();
+//     const processInfo = runningProcesses[characterPath];
+//
+//     if (!processInfo) {
+//         return res.status(404).json({ error: `No running process found for ${characterPath}` });
+//     }
+//
+//     // Kill the process
+//     try {
+//         process.kill(processInfo.pid);
+//         console.log(`Eliza stopped for ${characterPath}`);
+//         delete runningProcesses[characterPath];
+//         writeRunningProcesses(runningProcesses);
+//         res.json({ message: "Eliza stopped", character: characterPath });
+//     } catch (error) {
+//         console.error(`Failed to stop process for ${characterPath}:`, error.message);
+//         res.status(500).json({ error: `Failed to stop process for ${characterPath}` });
+//     }
+// });
+
 app.post('/stop-eliza', (req, res) => {
     const characterPath = req.query.characterPath;
 
