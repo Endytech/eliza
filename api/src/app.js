@@ -153,6 +153,7 @@ app.post('/stop-eliza', (req, res) => {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
+        const characterPath = `characters/${character}.character.json`;
 
         const runningProcesses = readRunningProcesses();
         const processInfo = runningProcesses[character];
