@@ -166,7 +166,7 @@ app.post('/stop-eliza', (request, response) => {
         console.log(`Eliza stopped for ${characterPath}`);
         delete runningProcesses[character];
         writeRunningProcesses(runningProcesses);
-        res.json({ message: "Eliza stopped", character: characterPath });
+        response.json({ status: true, message: "Eliza stopped", character: characterPath });
     } catch (error) {
         response.status(400).json({
             status: false,
