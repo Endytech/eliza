@@ -162,7 +162,8 @@ app.post('/stop-eliza', (request, response) => {
             return res.status(404).json({ error: `No running process found for ${characterPath}` });
         }
         // Kill the process
-        process.kill(processInfo.pid);
+        const res = process.kill(processInfo.pid);
+        console.log(`res`, res);
         console.log(`Eliza stopped for ${characterPath}`);
         delete runningProcesses[character];
         writeRunningProcesses(runningProcesses);
