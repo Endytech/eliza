@@ -7,6 +7,7 @@ import * as path from 'path';
 import bodyParser from 'body-parser';
 import { spawn } from 'child_process';
 // import export_ipmort_config from './_config';
+import treeKill from 'tree-kill';
 
 const app = express();
 const port = 3100;
@@ -162,7 +163,8 @@ app.post('/stop-eliza', (request, response) => {
             return response.status(404).json({ error: `No running process found for ${characterPath}` });
         }
         // Kill the process
-        const res = process.kill(processInfo.pid);
+        // const res = process.kill(processInfo.pid);
+        const res = treeKill(processInfo.pid);
         console.log(`res`, res);
         console.log(`Eliza stopped for ${characterPath}`);
         delete runningProcesses[character];
