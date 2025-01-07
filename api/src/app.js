@@ -37,7 +37,7 @@ function writeRunningProcesses(processes) {
 }
 
 // API to start Eliza with a specific character
-app.get('/start-eliza', (request, response) => {
+app.get('/eliza/character/start', (request, response) => {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
@@ -65,47 +65,47 @@ app.get('/start-eliza', (request, response) => {
         console.log('rootDir', rootDir);
         console.log('logsDir', logsDir);
 
-        // const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
-        // console.log('command', command);
+        const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
+        console.log('command', command);
 
-        // const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
-        //     if (error) {
-        //         console.error(`Error run process: ${error.message}`);
-        //         return;
-        //     }
-        //     if (stderr) {
-        //         console.error(`Stderr when run process: ${stderr}`);
-        //     }
-        //     console.log(`Stdout: ${stdout}`);
-        // });
-        console.log('process', process);
-
-// Build the command
-        const command = `pnpm`;
-        const args = [
-            'start:debug',
-            `--characters=${characterPath}`,
-        ];
-        console.log('Command:', command, args);
-
-// Spawn the process
-        const process = spawn(command, args, {
-            cwd: rootDir,
-            shell: true, // Required for piping (`tee`)
-            stdio: ['inherit', 'pipe', 'pipe'], // Pipe output for logs
+        const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
+            if (error) {
+                console.error(`Error run process: ${error.message}`);
+                return;
+            }
+            if (stderr) {
+                console.error(`Stderr when run process: ${stderr}`);
+            }
+            console.log(`Stdout: ${stdout}`);
         });
         console.log('process', process);
 
-// Log stdout and stderr to a file
-        const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-        process.stdout.pipe(logStream);
-        process.stderr.pipe(logStream);
-
-// Handle process termination
-        process.on('close', (code) => {
-            console.log(`Process exited with code: ${code}`);
-            logStream.end();
-        });
+// // Build the command
+//         const command = `pnpm`;
+//         const args = [
+//             'start:debug',
+//             `--characters=${characterPath}`,
+//         ];
+//         console.log('Command:', command, args);
+//
+// // Spawn the process
+//         const process = spawn(command, args, {
+//             cwd: rootDir,
+//             shell: true, // Required for piping (`tee`)
+//             stdio: ['inherit', 'pipe', 'pipe'], // Pipe output for logs
+//         });
+//         console.log('process', process);
+//
+// // Log stdout and stderr to a file
+//         const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+//         process.stdout.pipe(logStream);
+//         process.stderr.pipe(logStream);
+//
+// // Handle process termination
+//         process.on('close', (code) => {
+//             console.log(`Process exited with code: ${code}`);
+//             logStream.end();
+//         });
 
         // Save the process PID to the file
         runningProcesses[character] = { pid: process.pid, logFile };
@@ -150,7 +150,7 @@ app.get('/start-eliza', (request, response) => {
 //     }
 // });
 
-app.post('/stop-eliza', (request, response) => {
+app.post('/eliza/character/stop', (request, response) => {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
@@ -164,8 +164,7 @@ app.post('/stop-eliza', (request, response) => {
         }
         // Kill the process
         // const res = process.kill(processInfo.pid);
-        const res = treeKill(processInfo.pid);
-        console.log(`res`, res);
+        treeKill(processInfo.pid);
         console.log(`Eliza stopped for ${characterPath}`);
         delete runningProcesses[character];
         writeRunningProcesses(runningProcesses);
@@ -179,7 +178,7 @@ app.post('/stop-eliza', (request, response) => {
 });
 
 // API to list all running processes
-app.get('/list-eliza', (req, res) => {
+app.get('/eliza/character/runlist', (req, res) => {
     const runningProcesses = readRunningProcesses();
     res.json({ runningProcesses });
 });
