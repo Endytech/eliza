@@ -42,8 +42,6 @@ app.get('/eliza/character/start', (request, response) => {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
         const characterPath = `characters/${character}.character.json`;
-        // const logFile = `logs/logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`;
-        console.log('logFile', logFile);
         const runningProcesses = readRunningProcesses();
         console.log('runningProcesses', runningProcesses);
 
@@ -55,9 +53,7 @@ app.get('/eliza/character/start', (request, response) => {
         // Resolve the root directory and logs directory
         const rootDir = path.resolve('../');
         const logsDir = path.join(rootDir, 'logs');
-
         const logFile = path.join(logsDir, `logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`);
-
         // Ensure the logs directory exists
         if (!existsSync(logsDir)) {
             console.log('Does not exist logsDir', logsDir);
@@ -67,7 +63,6 @@ app.get('/eliza/character/start', (request, response) => {
 
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
         console.log('command', command);
-
         const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
             if (error) {
                 console.error(`Error run process: ${error.message}`);
