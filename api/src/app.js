@@ -56,7 +56,7 @@ app.get('/eliza/character/start', (request, response) => {
         const logFile = path.join(logsDir, `logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`);
         // Ensure the logs directory exists
         if (!existsSync(logsDir)) {
-            console.log('Does not exist logsDir', logsDir);
+            throw new Error('Does not exist log directory', logsDir);
         }
         console.log('rootDir', rootDir);
         console.log('logsDir', logsDir);
@@ -65,11 +65,10 @@ app.get('/eliza/character/start', (request, response) => {
         console.log('command', command);
         const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
             if (error) {
-                console.error(`Error run process: ${error.message}`);
-                return;
+                throw new Error(`Error run process: ${error.message}`);
             }
             if (stderr) {
-                console.error(`Stderr when run process: ${stderr}`);
+                throw new Error(`Stderr when run process: ${stderr}`)
             }
             console.log(`Stdout: ${stdout}`);
         });
@@ -103,12 +102,10 @@ app.get('/eliza/character/start', (request, response) => {
 //         });
 
         // Save the process PID to the file
-        runningProcesses[character] = { pid: process.pid, logFile };
+        runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: character };
         writeRunningProcesses(runningProcesses);
-        console.log(`Started process with PID: ${process.pid}`);
-
-        console.log(`Eliza started for ${characterPath}`);
-        response.json({ status: true, message: "Eliza started", character: characterPath, logFile });
+        console.log(`Started eliza process with PID: ${process.pid} for ${characterPath}`);
+        response.json({ status: true, character: characterPath, logFile });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -158,12 +155,12 @@ app.post('/eliza/character/stop', (request, response) => {
             return response.status(404).json({ error: `No running process found for ${characterPath}` });
         }
         // Kill the process
-        // const res = process.kill(processInfo.pid);
+        // process.kill(processInfo.pid);
         treeKill(processInfo.pid);
         console.log(`Eliza stopped for ${characterPath}`);
         delete runningProcesses[character];
         writeRunningProcesses(runningProcesses);
-        response.json({ status: true, message: "Eliza stopped", character: characterPath });
+        response.json({ status: true, character: characterPath });
     } catch (error) {
         response.status(400).json({
             status: false,
