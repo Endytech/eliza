@@ -1,0 +1,8 @@
+.idea
+*.log
+npm-debug.log*
+node_modules
+.eslintrc.js
+package-lock.json
+dist
+src/_config.js

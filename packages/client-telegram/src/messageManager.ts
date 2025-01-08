@@ -1,7 +1,7 @@
 import { Message } from "@telegraf/types";
 import { Context, Telegraf } from "telegraf";
 
-import { composeContext, elizaLogger, ServiceType } from "@elizaos/core";
+import { composeContext, elizaLogger, ServiceType, composeRandomUser } from "@elizaos/core";
 import { getEmbeddingZeroVector } from "@elizaos/core";
 import {
     Content,
@@ -661,7 +661,7 @@ export class MessageManager {
                     this.runtime.character.templates
                         ?.telegramShouldRespondTemplate ||
                     this.runtime.character?.templates?.shouldRespondTemplate ||
-                    telegramShouldRespondTemplate,
+                    composeRandomUser(telegramShouldRespondTemplate, 2),
             });
 
             const response = await generateShouldRespond({
@@ -1073,46 +1073,54 @@ export class MessageManager {
                     .replace(/\./g, "\\.") // Экранируем .
                     .replace(/!/g, "\\!"); // Экранируем !
             };
-                     
+
 
             if (shouldRespond) {
                 // Generate response
                 const context = composeContext({
                     state,
                     template:
-                        this.runtime.character.templates?.telegramMessageHandlerTemplate ||
-                        this.runtime.character?.templates?.messageHandlerTemplate ||
+                        this.runtime.character.templates
+                            ?.telegramMessageHandlerTemplate ||
+                        this.runtime.character?.templates
+                            ?.messageHandlerTemplate ||
                         telegramMessageHandlerTemplate,
                 });
-            
-                const responseContent = await this._generateResponse(memory, state, context);
-            
+
+                const responseContent = await this._generateResponse(
+                    memory,
+                    state,
+                    context
+                );
+
                 if (!responseContent || !responseContent.text) return;
-            
+
                 // Экранируем текст перед отправкой
                 const sanitizedText = escapeMarkdown(responseContent.text);
-            
+
                 // Send response in chunks
                 const callback: HandlerCallback = async (content: Content) => {
                     const sanitizedContent = { ...content, text: escapeMarkdown(content.text) }; // Экранируем текст в каждой части ответа
-            
+
                     const sentMessages = await this.sendMessageInChunks(
                         ctx,
                         sanitizedContent,
                         message.message_id
                     );
-            
+
                     if (sentMessages) {
                         const memories: Memory[] = [];
-            
+
                         // Create memories for each sent message
                         for (let i = 0; i < sentMessages.length; i++) {
                             const sentMessage = sentMessages[i];
                             const isLastMessage = i === sentMessages.length - 1;
-            
+
                             const memory: Memory = {
                                 id: stringToUuid(
-                                    sentMessage.message_id.toString() + "-" + this.runtime.agentId
+                                    sentMessage.message_id.toString() +
+                                        "-" +
+                                        this.runtime.agentId
                                 ),
                                 agentId,
                                 userId: agentId,
@@ -1125,34 +1133,40 @@ export class MessageManager {
                                 createdAt: sentMessage.date * 1000,
                                 embedding: getEmbeddingZeroVector(),
                             };
-            
+
                             // Set action to CONTINUE for all messages except the last one
                             // For the last message, use the original action from the response content
                             memory.content.action = !isLastMessage
                                 ? "CONTINUE"
                                 : sanitizedContent.action;
-            
-                            await this.runtime.messageManager.createMemory(memory);
+
+                            await this.runtime.messageManager.createMemory(
+                                memory
+                            );
                             memories.push(memory);
                         }
-            
+
                         return memories;
                     }
                 };
-            
+
                 // Выполняем callback для отправки сообщения
                 const responseMessages = await callback({
                     ...responseContent,
                     text: sanitizedText, // Используем экранированный текст
                 });
-            
+
                 // Update state after response
                 state = await this.runtime.updateRecentMessageState(state);
-            
+
                 // Handle any resulting actions
-                await this.runtime.processActions(memory, responseMessages, state, callback);
+                await this.runtime.processActions(
+                    memory,
+                    responseMessages,
+                    state,
+                    callback
+                );
             }
-            
 
             await this.runtime.evaluate(memory, state, shouldRespond);
         } catch (error) {

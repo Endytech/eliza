@@ -8,6 +8,7 @@ import {
     stringToUuid,
     UUID,
     generateImage,
+    parseBooleanFromText
 } from "@elizaos/core";
 import { elizaLogger } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
@@ -18,7 +19,7 @@ import { buildConversationThread } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 import { saveBase64Image, saveHeuristImage } from "../../plugin-image-generation/src/index.ts";
-import {getBrnCollectionItems} from "../../plugin-brn/api.ts";
+import { getBrnNews } from "../../plugin-brn/api.ts";
 import fs from "fs";
 import { Buffer } from "buffer";
 
@@ -423,16 +424,23 @@ export class TwitterPostClient {
             const topics = this.runtime.character.topics.join(", ");
 
             const brnHost = this.runtime.getSetting("BRN_HOST");
-            const collectionId = this.runtime.getSetting("BRN_NEWS_COLLECTION_ID");
+            const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
+            const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
 
             let brnCollectionDataFetch = {};
-            if (brnHost && collectionId) {
-                brnCollectionDataFetch = await getBrnCollectionItems(
+            if (brnHost && collectionIds && brnApiKeys) {
+                // Sorted by fields.date, newest on top, only not viewed. And set viewed
+                brnCollectionDataFetch = await getBrnNews(
                     {
-                        brn_host: brnHost,
-                        collectionId: collectionId,
+                        brnHost,
+                        collectionIds,
+                        brnApiKeys,
                         offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
                         limit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
+                        sortField: 'date',
+                        sortDirection: '-1',
+                        setViewed: true,
+                        viewed: '0'
                     },
                     this.runtime
                 );
@@ -531,43 +539,48 @@ export class TwitterPostClient {
 
             // Generate image by generated content
             const mediaData = [];
-            const imageSettings = this.runtime.getSetting("imageSettings");
-            const images = await generateImage(
-                {
-                    prompt: cleanedContent,
-                    width: imageSettings?.width,
-                    height: imageSettings?.height,
-                },
-                this.runtime
-            );
-            if (images.success && images.data && images.data.length > 0) {
-                elizaLogger.log(
-                    "Image generation successful, number of images:",
-                    images.data.length
+
+            const twitterPostImageGen = parseBooleanFromText(this.runtime.getSetting("TWITTER_POST_IMAGE_GEN"));
+            elizaLogger.info(`TWITTER_POST_IMAGE_GEN: ${twitterPostImageGen}`);
+            if (twitterPostImageGen) {
+                const imageSettings = this.runtime.getSetting("imageSettings");
+                const images = await generateImage(
+                    {
+                        prompt: cleanedContent,
+                        width: imageSettings?.width,
+                        height: imageSettings?.height,
+                    },
+                    this.runtime
                 );
-                for (let i = 0; i < images.data.length; i++) {
-                    const image = images.data[i];
-
-                    // Save the image and get filepath
-                    const filename = `generated_${Date.now()}_${i}`;
-
-                    // Choose save function based on image data format
-                    const filepath = image.startsWith("http")
-                        ? await saveHeuristImage(image, filename)
-                        : saveBase64Image(image, filename);
-
-                    mediaData.push({
-                        data: fs.readFileSync(filepath),
-                        mediaType: 'image/png'
-                    })
-                    elizaLogger.log(`Processing image ${i + 1}:`, filename);
+                if (images.success && images.data && images.data.length > 0) {
                     elizaLogger.log(
-                        `image:`,
-                        image
+                        "Image generation successful, number of images:",
+                        images.data.length
                     );
+                    for (let i = 0; i < images.data.length; i++) {
+                        const image = images.data[i];
+
+                        // Save the image and get filepath
+                        const filename = `generated_${Date.now()}_${i}`;
+
+                        // Choose save function based on image data format
+                        const filepath = image.startsWith("http")
+                            ? await saveHeuristImage(image, filename)
+                            : saveBase64Image(image, filename);
+
+                        mediaData.push({
+                            data: fs.readFileSync(filepath),
+                            mediaType: 'image/png'
+                        })
+                        elizaLogger.log(`Processing image ${i + 1}:`, filename);
+                        elizaLogger.log(
+                            `image:`,
+                            image
+                        );
+                    }
+                } else {
+                    elizaLogger.error("Image generation failed or returned no data.");
                 }
-            } else {
-                elizaLogger.error("Image generation failed or returned no data.");
             }
 
             try {
