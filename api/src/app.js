@@ -65,7 +65,7 @@ app.get('/eliza/character/start', (request, response) => {
             if (stderr) {
                 console.error(`Stderr when run process: ${stderr}`)
             }
-            console.log(`Stdout: ${stdout}`);
+            // console.log(`Stdout: ${stdout}`);
         });
 
 // // Build the command
