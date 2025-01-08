@@ -43,7 +43,6 @@ app.get('/eliza/character/start', (request, response) => {
         if (!character) throw new Error('character required');
         const characterPath = `characters/${character}.character.json`;
         const runningProcesses = readRunningProcesses();
-        console.log('runningProcesses', runningProcesses);
 
         // Check if process for this character is already running
         if (runningProcesses[character]) {
@@ -58,21 +57,16 @@ app.get('/eliza/character/start', (request, response) => {
         if (!existsSync(logsDir)) {
             throw new Error('Does not exist log directory', logsDir);
         }
-        console.log('rootDir', rootDir);
-        console.log('logsDir', logsDir);
-
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
-        console.log('command', command);
         const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
             if (error) {
-                throw new Error(`Error run process: ${error.message}`);
+                console.error(`Error run process: ${error.message}`);
             }
             if (stderr) {
-                throw new Error(`Stderr when run process: ${stderr}`)
+                console.error(`Stderr when run process: ${stderr}`)
             }
             console.log(`Stdout: ${stdout}`);
         });
-        console.log('process', process);
 
 // // Build the command
 //         const command = `pnpm`;
@@ -102,10 +96,10 @@ app.get('/eliza/character/start', (request, response) => {
 //         });
 
         // Save the process PID to the file
-        runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: character };
+        runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPath };
         writeRunningProcesses(runningProcesses);
         console.log(`Started eliza process with PID: ${process.pid} for ${characterPath}`);
-        response.json({ status: true, character: characterPath, logFile });
+        response.json({ status: true, pid: process.pid, log_file: logFile, character, character_path: characterPath });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -142,7 +136,7 @@ app.get('/eliza/character/start', (request, response) => {
 //     }
 // });
 
-app.post('/eliza/character/stop', (request, response) => {
+app.get('/eliza/character/stop', (request, response) => {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
@@ -160,7 +154,7 @@ app.post('/eliza/character/stop', (request, response) => {
         console.log(`Eliza stopped for ${characterPath}`);
         delete runningProcesses[character];
         writeRunningProcesses(runningProcesses);
-        response.json({ status: true, character: characterPath });
+        response.json({ status: true, character, character_path: characterPath });
     } catch (error) {
         response.status(400).json({
             status: false,
