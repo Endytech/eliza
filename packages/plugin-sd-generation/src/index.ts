@@ -83,11 +83,11 @@ const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
 };
 
 const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
-    const apiKey = runtime.getSetting("IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
+    const apiKey = runtime.getSetting("SD_IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
 
     try {
         elizaLogger.log("Starting image generation with prompt:", prompt);
-        const apiUrl =  runtime.getSetting("IMAGE_GEN_API_URL") || IMAGE_GENERATION_CONSTANTS.API_URL;
+        const apiUrl =  runtime.getSetting("SD_IMAGE_GEN_API_URL") || IMAGE_GENERATION_CONSTANTS.API_URL;
         const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
@@ -167,8 +167,8 @@ const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
     }
 };
 
-const imageGeneration: Action = {
-    name: "GENERATE_IMAGE",
+const imageSDGeneration: Action = {
+    name: "GENERATE_SD_IMAGE",
     similes: [
         "IMAGE_GENERATION",
         "IMAGE_GEN",
@@ -182,10 +182,10 @@ const imageGeneration: Action = {
     description: "Generate an image based on a text prompt",
     validate: async (runtime: IAgentRuntime, _message: Memory) => {
         elizaLogger.log("Validating image generation action");
-        const apiKey = runtime.getSetting("IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
-        elizaLogger.log("IMAGE_GEN_API_KEY present:", !!apiKey);
-        const apiUrl =  runtime.getSetting("IMAGE_GEN_API_URL") || IMAGE_GENERATION_CONSTANTS.API_URL;
-        elizaLogger.log("IMAGE_GEN_API_URL present:", !!apiUrl);
+        const apiKey = runtime.getSetting("SD_IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
+        elizaLogger.log("SD_IMAGE_GEN_API_KEY present:", !!apiKey);
+        const apiUrl =  runtime.getSetting("SD_IMAGE_GEN_API_URL") || IMAGE_GENERATION_CONSTANTS.API_URL;
+        elizaLogger.log("SD_IMAGE_GEN_API_URL present:", !!apiUrl);
         return !!apiKey && !!apiUrl;
     },
     handler: async (
@@ -223,7 +223,7 @@ const imageGeneration: Action = {
 
             if (result.success) {
                 const { imagePath, additionalData } = result;
-                elizaLogger.log("imageGeneration result.success url:", imagePath);
+                elizaLogger.log("imageSDGeneration result.success url:", imagePath);
                 callback(
                     {
                         text: `Here's your generated image (Execution time: ${additionalData.executionTime}ms):`,
@@ -232,7 +232,7 @@ const imageGeneration: Action = {
                                 id: crypto.randomUUID(),
                                 url: imagePath,
                                 title: "Generated Image",
-                                source: "imageGeneration",
+                                source: "imageSDGeneration",
                                 description: imagePrompt,
                                 text: imagePrompt,
                                 contentType: "image/png", // Убедитесь, что тип контента указан
@@ -265,7 +265,7 @@ const imageGeneration: Action = {
                 user: "{{agentName}}",
                 content: {
                     text: "I'll create an image of a cat in space for you",
-                    action: "GENERATE_IMAGE",
+                    action: "GENERATE_SD_IMAGE",
                 },
             },
         ],
@@ -275,7 +275,7 @@ const imageGeneration: Action = {
 export const imageSDGenerationPlugin: Plugin = {
     name: "imageSDGeneration",
     description: "Generate images using your custom API",
-    actions: [imageGeneration],
+    actions: [imageSDGeneration],
     evaluators: [],
     providers: [],
 };

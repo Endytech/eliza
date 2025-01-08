@@ -522,7 +522,6 @@ export async function createAgent(
         // character.plugins are handled when clients are added
         plugins: [
             bootstrapPlugin,
-            imageSDGenerationPlugin,
             getSecret(character, "CONFLUX_CORE_PRIVATE_KEY")
                 ? confluxPlugin
                 : null,
@@ -556,11 +555,14 @@ export async function createAgent(
             getSecret(character, "COINBASE_COMMERCE_KEY")
                 ? coinbaseCommercePlugin
                 : null,
-            getSecret(character, "FAL_API_KEY") ||
+            getSecret(character, "SD_IMAGE_GEN_API_KEY")
+                ? imageSDGenerationPlugin
+                : null,
+            ((getSecret(character, "FAL_API_KEY") ||
             getSecret(character, "OPENAI_API_KEY") ||
             getSecret(character, "VENICE_API_KEY") ||
             getSecret(character, "HEURIST_API_KEY") ||
-            getSecret(character, "LIVEPEER_GATEWAY_URL")
+            getSecret(character, "LIVEPEER_GATEWAY_URL")) && !getSecret(character, "SD_IMAGE_GEN_API_KEY"))
                 ? imageGenerationPlugin
                 : null,
             getSecret(character, "FAL_API_KEY") ? ThreeDGenerationPlugin : null,
