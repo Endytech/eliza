@@ -40,7 +40,7 @@ export async function saveImage(data: string, filename: string, isBase64: boolea
     if (!fs.existsSync(filepath)) {
         throw new Error(`Image file not created: ${filepath}`);
     }
-    
+
     return filepath;
 }
 
@@ -83,15 +83,15 @@ const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
 };
 
 const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
-    const API_KEY = runtime.getSetting(IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING);
+    const apiKey = runtime.getSetting("IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
 
     try {
         elizaLogger.log("Starting image generation with prompt:", prompt);
-
-        const response = await fetch(IMAGE_GENERATION_CONSTANTS.API_URL, {
+        const apiUrl =  runtime.getSetting("IMAGE_GEN_API_URL") || IMAGE_GENERATION_CONSTANTS.API_URL;
+        const response = await fetch(apiUrl, {
             method: "POST",
             headers: {
-                Authorization: `Bearer ${API_KEY}`,
+                Authorization: `Bearer ${apiKey}`,
                 accept: "application/json",
                 "Content-Type": "application/json",
             },
@@ -136,7 +136,7 @@ const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
         }
 
         elizaLogger.log(`Waiting for completion of task with id: ${id}`);
-        const completedData = await waitForCompletion(id, API_KEY);
+        const completedData = await waitForCompletion(id, apiKey);
 
         if (!completedData.output?.images || completedData.output.images.length === 0) {
             throw new Error("No images returned in the completed response.");
@@ -182,9 +182,11 @@ const imageGeneration: Action = {
     description: "Generate an image based on a text prompt",
     validate: async (runtime: IAgentRuntime, _message: Memory) => {
         elizaLogger.log("Validating image generation action");
-        const apiKey = runtime.getSetting(IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING);
+        const apiKey = runtime.getSetting("IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
         elizaLogger.log("IMAGE_GEN_API_KEY present:", !!apiKey);
-        return !!apiKey;
+        const apiUrl =  runtime.getSetting("IMAGE_GEN_API_URL") || IMAGE_GENERATION_CONSTANTS.API_URL;
+        elizaLogger.log("IMAGE_GEN_API_URL present:", !!apiUrl);
+        return !!apiKey && !!apiUrl;
     },
     handler: async (
         runtime: IAgentRuntime,
