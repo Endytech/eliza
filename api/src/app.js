@@ -151,7 +151,7 @@ app.get('/eliza/character/stop', (request, response) => {
         // Kill the process
         // process.kill(processInfo.pid);
         treeKill(processInfo.pid);
-        console.log(`Eliza stopped for ${characterPath}`);
+        console.log(`Eliza stopped with PID: ${process.pid} for ${characterPath}`);
         delete runningProcesses[character];
         writeRunningProcesses(runningProcesses);
         response.json({ status: true, character, character_path: characterPath });
