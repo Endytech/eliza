@@ -49,6 +49,38 @@ export async function saveImage(data: string, filename: string, isBase64: boolea
 //     return await saveImage(imageData, filename, isBase64);
 // };
 
+const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
+    const statusUrl = `https://api.runpod.ai/v2/ez7djx79dzbno3/status/${id}`;
+
+    while (true) {
+        const response = await fetch(statusUrl, {
+            method: "GET",
+            headers: {
+                Authorization: `Bearer ${apiKey}`,
+                accept: "application/json",
+            },
+        });
+
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Error fetching status: ${errorText}`);
+        }
+
+        const statusData = await response.json();
+        elizaLogger.log("Status check response:", statusData);
+
+        const { status } = statusData;
+
+        if (status === "COMPLETED") {
+            return statusData;
+        } else if (status === "IN_QUEUE" || status === "IN_PROGRESS") {
+            elizaLogger.log(`Status: ${status}. Retrying in 10 seconds...`);
+            await new Promise((resolve) => setTimeout(resolve, 10000));
+        } else {
+            throw new Error(`Unexpected status: ${status}`);
+        }
+    }
+};
 
 const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
     const API_KEY = runtime.getSetting(IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING);
@@ -70,7 +102,14 @@ const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
                     task_id: `task_${Date.now()}`,
                     webhook: null,
                     prompt,
-                    steps: 25,
+                    negative_prompt: "(((Group photo))), (((more than one person))), (((mutation))), (((deformed))), ((ugly)), blurry, ((bad anatomy)), (((bad proportions))), ((extra limbs)), (((cloned face))), text, signature, Doll, deformed, asymmetric, cropped, censored, frame, mock-up, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, worst quality, low quality, normal quality, jpeg artifacts, watermark, username, blurry, artist name",
+                    guidance: 12,
+				    strength: 1,
+				    sampler: "Euler a",
+                    steps: 30,
+                    override_settings: {
+                        sd_model_checkpoint: "ponyDiffusionV6XL_v6StartWithThisOne.safetensors"
+                    },
                 },
             }),
         });
@@ -88,23 +127,35 @@ const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
         }
 
         const data = await response.json();
-        elizaLogger.log("Generation request successful, received response:", data);
+        elizaLogger.log("Generation request submitted. Received response:", data);
 
-        if (!data.output?.images || data.output.images.length === 0) {
-            throw new Error("No images returned in the response");
+        const { id, status } = data;
+
+        if (!id || !status) {
+            throw new Error("Response does not include 'id' or 'status'.");
         }
 
-        // Сохраняем только один раз
+        elizaLogger.log(`Waiting for completion of task with id: ${id}`);
+        const completedData = await waitForCompletion(id, API_KEY);
+
+        if (!completedData.output?.images || completedData.output.images.length === 0) {
+            throw new Error("No images returned in the completed response.");
+        }
+
         const filename = `generated_image_${Date.now()}`;
-        const imagePath = await saveImage(data.output.images[0], filename, true);
+        const imagePath = await saveImage(
+            completedData.output.images[0],
+            filename,
+            true
+        );
 
         return {
             success: true,
             imagePath,
             additionalData: {
-                delayTime: data.delayTime,
-                executionTime: data.executionTime,
-                id: data.id,
+                delayTime: completedData.delayTime,
+                executionTime: completedData.executionTime,
+                id: completedData.id,
             },
         };
     } catch (error) {
@@ -115,7 +166,6 @@ const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
         };
     }
 };
-
 
 const imageGeneration: Action = {
     name: "GENERATE_IMAGE",
