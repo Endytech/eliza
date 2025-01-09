@@ -170,7 +170,7 @@ async function CreateCharacter(request, response) {
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
 
         // Save the character JSON to the file
-        await fs.writeFile(characterPath, JSON.stringify(character, null, 2), 'utf8');
+        await fs.writeFile(characterPath, JSON.stringify(character, null, 2));
         response.json({ status: true, character, character_path: characterPath });
     } catch (error) {
         response.status(400).json({
