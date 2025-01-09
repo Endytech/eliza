@@ -59,9 +59,9 @@ app.get('/eliza/character/start', (request, response) => {
         }
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
         const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
-            // if (error) {
-            //     console.error(`Error run process: ${error.message}`);
-            // }
+            if (error) {
+                console.error(`Error run process: ${error.message}`);
+            }
             if (stderr) {
                 console.error(`Stderr when run process: ${stderr}`)
             }
