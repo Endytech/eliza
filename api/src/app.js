@@ -179,7 +179,9 @@ async function CharacterList(request, response) {
         const rootDir = path.resolve('../');
         const charactersPath = path.join(rootDir, `characters/`);
         // Read the directory
-        const files = await fs.readdir(charactersPath);
+        const files = await fs.readdir(charactersPath,(err) => {
+            if (err) throw err;
+        });
 
         // Extract base names from files
         const characters = files
