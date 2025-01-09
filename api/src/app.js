@@ -178,13 +178,14 @@ async function CharacterList(request, response) {
         const { body: { character, data } } = request;
         const rootDir = path.resolve('../');
         const charactersPath = path.join(rootDir, `characters/`);
-        // Read the directory
         const files = await fs.readdirSync(charactersPath);
         console.log('files', files);
-        // Extract base names from files
         const characters = files.filter(file => file.endsWith('.character.json'))
-            .map(file => file.split('.character')[0]) // Extract the part before `.character`
-            // .filter((value, index, self) => self.indexOf(value) === index); // Deduplicate
+            .map(file => {
+                return {
+                    character: file.split('.character')[0], // Extract the part before `.character`
+                    character_path: file
+            }}) 
         response.json({ status: true, characters });
     } catch (error) {
         response.status(400).json({
