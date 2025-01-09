@@ -146,7 +146,7 @@ async function CreateCharacter(request, response) {
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         let existCharacters = GetCharacterList();
         existCharacters = existCharacters.map((item) => item.character);
-
+        if (existCharacters.includes(character)) throw new Error("Character already exists");
         // Define the file path where the JSON will be saved
         const rootDir = path.resolve('../');
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
@@ -166,9 +166,6 @@ async function CreateCharacter(request, response) {
 async function CharacterList(request, response) {
     try{
         const characters = GetCharacterList();
-        let existCharacters = GetCharacterList();
-        existCharacters = existCharacters.map((item) => item.character);
-        console.log('existCharacters', existCharacters);
         response.json({ status: true, characters });
     } catch (error) {
         response.status(400).json({
