@@ -84,9 +84,37 @@ const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
 
 const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
     const apiKey = runtime.getSetting("SD_IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
-
+    const imageSettings = runtime.getSetting("imageSettings");
     try {
         elizaLogger.log("Starting image generation with prompt:", prompt);
+
+        const loraMapping = {
+            "<lora:PusheenIXL:1.0>": "waiNSFWIllustrious_v70.safetensors"
+        };
+        let sdModelCheckpoint = "ponyDiffusionV6XL_v6StartWithThisOne.safetensors";
+        for (const [key, value] of Object.entries(loraMapping)) {
+            if (prompt.includes(key)) sdModelCheckpoint = value;
+        }
+
+        const params = {
+            input: {
+                api_name: "txt2img",
+                id: crypto.randomUUID(),
+                task_id: `task_${Date.now()}`,
+                webhook: null,
+                prompt,
+                negative_prompt: imageSettings?.negative_prompt || "(((Group photo))), (((more than one person))), (((mutation))), (((deformed))), ((ugly)), blurry, ((bad anatomy)), (((bad proportions))), ((extra limbs)), (((cloned face))), text, signature, Doll, deformed, asymmetric, cropped, censored, frame, mock-up, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, worst quality, low quality, normal quality, jpeg artifacts, watermark, username, blurry, artist name",
+                guidance: 12,
+                strength: 1,
+                sampler: imageSettings?.sampler || "Euler a",
+                steps: 30,
+                override_settings: {
+                    sd_model_checkpoint: imageSettings?.sd_model_checkpoint || sdModelCheckpoint
+                },
+            },
+        };
+        elizaLogger.debug("Starting image generation with params:", params);
+        
         const apiUrl =  runtime.getSetting("SD_IMAGE_GEN_API_URL") || IMAGE_GENERATION_CONSTANTS.API_URL;
         const response = await fetch(apiUrl, {
             method: "POST",
@@ -95,23 +123,7 @@ const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
                 accept: "application/json",
                 "Content-Type": "application/json",
             },
-            body: JSON.stringify({
-                input: {
-                    api_name: "txt2img",
-                    id: crypto.randomUUID(),
-                    task_id: `task_${Date.now()}`,
-                    webhook: null,
-                    prompt,
-                    negative_prompt: "(((Group photo))), (((more than one person))), (((mutation))), (((deformed))), ((ugly)), blurry, ((bad anatomy)), (((bad proportions))), ((extra limbs)), (((cloned face))), text, signature, Doll, deformed, asymmetric, cropped, censored, frame, mock-up, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, worst quality, low quality, normal quality, jpeg artifacts, watermark, username, blurry, artist name",
-                    guidance: 12,
-				    strength: 1,
-				    sampler: "Euler a",
-                    steps: 30,
-                    override_settings: {
-                        sd_model_checkpoint: "ponyDiffusionV6XL_v6StartWithThisOne.safetensors"
-                    },
-                },
-            }),
+            body: JSON.stringify(params),
         });
 
         if (!response.ok) {
