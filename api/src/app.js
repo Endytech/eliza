@@ -31,6 +31,7 @@ app.get('/eliza/character/stop',StopCharacter);
 app.get('/eliza/character/runlist', RunList);
 // Create character
 app.post('/eliza/character', CreateCharacter);
+app.get('/eliza/character', CharacterList);
 
 // Helper: Read running processes from file
 function readRunningProcesses() {
@@ -153,27 +154,40 @@ async function RunList(request, response) {
 async function CreateCharacter(request, response) {
     try{
         const { body: { character, data } } = request;
-        if (!data || typeof data !== 'object') {
-            throw new Error("Data must be a JSON object.");
-        }
-        console.log('data', data);
-        if (!data || typeof data !== 'object') {
-            throw new Error("Data must be a JSON object.");
-        }
-
-        if (!character || typeof character !== 'string') {
-            throw new Error("Character must be string.");
-        }
-
+        if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
+        if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         // Define the file path where the JSON will be saved
         const rootDir = path.resolve('../');
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
         console.log('characterPath', characterPath);
-        // Save the character JSON to the file
         await fs.writeFile(characterPath, JSON.stringify(data, null, 2),(err) => {
             if (err) throw err;
         });
         response.json({ status: true, character, character_path: characterPath });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+
+async function CharacterList(request, response) {
+    try{
+        const { body: { character, data } } = request;
+        const rootDir = path.resolve('../');
+        const charactersPath = path.join(rootDir, `characters/`);
+        // Read the directory
+        const files = await fs.readdir(charactersPath);
+
+        // Extract base names from files
+        const characters = files
+            .filter(file => file.endsWith('.character.json'))
+            .map(file => file.split('.character')[0]) // Extract the part before `.character`
+            // .filter((value, index, self) => self.indexOf(value) === index); // Deduplicate
+
+        response.json({ status: true, characters });
     } catch (error) {
         response.status(400).json({
             status: false,
