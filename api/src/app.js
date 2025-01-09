@@ -59,9 +59,9 @@ app.get('/eliza/character/start', async (request, response) => {
         }
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
         const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error run process: ${error.message}`);
-            }
+            // if (error) {
+            //     console.error(`Error run process: ${error.message}`);
+            // }
             if (stderr) {
                 console.error(`Stderr when run process: ${stderr}`)
             }
@@ -80,7 +80,8 @@ app.get('/eliza/character/start', async (request, response) => {
                 console.error(`Process for ${characterPath} exited with error code ${code} after ${duration}ms.`);
             }
         });
-        await new Promise((resolve) => setTimeout(resolve, 5000));
+        console.log(`isFinished ${isFinished}`);
+
 // // Build the command
 //         const command = `pnpm`;
 //         const args = [
@@ -111,7 +112,6 @@ app.get('/eliza/character/start', async (request, response) => {
         // Save the process PID to the file
         runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPath };
         writeRunningProcesses(runningProcesses);
-        console.log(`isFinished ${isFinished}`);
         console.log(`Started eliza process with PID: ${process.pid} for ${characterPath}`);
         response.json({ status: true, pid: process.pid, log_file: logFile, character, character_path: characterPath });
     } catch (error) {
