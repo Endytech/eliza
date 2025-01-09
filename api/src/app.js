@@ -166,6 +166,9 @@ async function CreateCharacter(request, response) {
 async function CharacterList(request, response) {
     try{
         const characters = GetCharacterList();
+        let existCharacters = GetCharacterList();
+        existCharacters = existCharacters.map((item) => item.character);
+        console.log('existCharacters', existCharacters);
         response.json({ status: true, characters });
     } catch (error) {
         response.status(400).json({
@@ -192,9 +195,6 @@ function GetCharacterList() {
     const rootDir = path.resolve('../');
     const charactersPath = path.join(rootDir, `characters/`);
     const files = fs.readdirSync(charactersPath);
-    let existCharacters = GetCharacterList();
-    existCharacters = existCharacters.map((item) => item.character);
-    console.log('existCharacters', existCharacters);
     return files.filter((file) => file.endsWith('.character.json'))
         .map((file) => {
             return {
