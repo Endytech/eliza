@@ -24,11 +24,11 @@ app.use(bodyParser.urlencoded({ extended: false }));
 const processFile = 'runningProcesses.json';
 
 // Start character
-app.get('/eliza/character/start', multer().any(), StartCharacter);
+app.get('/eliza/character/start', StartCharacter);
 // Stop character
-app.get('/eliza/character/stop', multer().any(), StopCharacter);
+app.get('/eliza/character/stop',StopCharacter);
 // Run character list
-app.get('/eliza/character/runlist', multer().any(), RunList);
+app.get('/eliza/character/runlist', RunList);
 // Create character
 app.post('/eliza/character', CreateCharacter);
 
