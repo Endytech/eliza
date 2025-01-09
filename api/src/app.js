@@ -182,10 +182,11 @@ async function CharacterList(request, response) {
         const files = await fs.readdir(charactersPath,(err) => {
             if (err) throw err;
         });
-
+        console.log('files', files);
+        const files1 = fs.readdirSync(charactersPath);
+        console.log('files1', files1);
         // Extract base names from files
-        const characters = files
-            .filter(file => file.endsWith('.character.json'))
+        const characters = files.filter(file => file.endsWith('.character.json'))
             .map(file => file.split('.character')[0]) // Extract the part before `.character`
             // .filter((value, index, self) => self.indexOf(value) === index); // Deduplicate
 
