@@ -156,15 +156,9 @@ async function CreateCharacter(request, response) {
         if (!data || typeof data !== 'object') {
             throw new Error("Data must be a JSON object.");
         }
-
+        console.log('data', data);
         if (!data || typeof data !== 'object') {
             throw new Error("Data must be a JSON object.");
-        }
-
-        try {
-            JSON.stringify(data, null, 2);
-        } catch (error) {
-            throw new Error("Data must be a valid JSON object. Error - ")
         }
 
         if (!character || typeof character !== 'string') {
