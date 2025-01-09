@@ -33,26 +33,13 @@ app.get('/eliza/character/runlist', RunList);
 app.post('/eliza/character', CreateCharacter);
 app.get('/eliza/character', CharacterList);
 
-// Helper: Read running processes from file
-function readRunningProcesses() {
-    if (fs.existsSync(processFile)) {
-        return JSON.parse(fs.readFileSync(processFile, 'utf-8'));
-    }
-    return {};
-}
 
-// Helper: Write running processes to file
-function writeRunningProcesses(processes) {
-    fs.writeFileSync(processFile, JSON.stringify(processes, null, 2));
-}
-
-// API to start Eliza with a specific character
 async function StartCharacter(request, response) {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
         const characterPath = `characters/${character}.character.json`;
-        const runningProcesses = readRunningProcesses();
+        const runningProcesses = ReadRunningProcesses();
 
         // Check if process for this character is already running
         if (runningProcesses[character]) {
@@ -109,7 +96,7 @@ async function StartCharacter(request, response) {
 //
         // Save the process PID to the file
         runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPath };
-        writeRunningProcesses(runningProcesses);
+        WriteRunningProcesses(runningProcesses);
         console.log(`Started eliza process with PID: ${process.pid} for ${characterPath}`);
         response.json({ status: true, pid: process.pid, log_file: logFile, character, character_path: characterPath });
     } catch (error) {
@@ -126,7 +113,7 @@ async function StopCharacter(request, response) {
         if (!character) throw new Error('character required');
         const characterPath = `characters/${character}.character.json`;
 
-        const runningProcesses = readRunningProcesses();
+        const runningProcesses = ReadRunningProcesses();
         const processInfo = runningProcesses[character];
 
         if (!processInfo) {
@@ -136,7 +123,7 @@ async function StopCharacter(request, response) {
         treeKill(processInfo.pid);
         console.log(`Eliza stopped with PID: ${process.pid} for ${characterPath}`);
         delete runningProcesses[character];
-        writeRunningProcesses(runningProcesses);
+        WriteRunningProcesses(runningProcesses);
         response.json({ status: true, character, character_path: characterPath });
     } catch (error) {
         response.status(400).json({
@@ -147,7 +134,7 @@ async function StopCharacter(request, response) {
 }
 
 async function RunList(request, response) {
-    const runningProcesses = readRunningProcesses();
+    const runningProcesses = ReadRunningProcesses();
     response.json({ runningProcesses });
 }
 
@@ -157,6 +144,9 @@ async function CreateCharacter(request, response) {
         if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
         if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        let existCharacters = GetCharacterList();
+        existCharacters = existCharacters.map((item) => item.character);
+
         // Define the file path where the JSON will be saved
         const rootDir = path.resolve('../');
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
@@ -175,17 +165,7 @@ async function CreateCharacter(request, response) {
 
 async function CharacterList(request, response) {
     try{
-        const { body: { character, data } } = request;
-        const rootDir = path.resolve('../');
-        const charactersPath = path.join(rootDir, `characters/`);
-        const files = await fs.readdirSync(charactersPath);
-        console.log('files', files);
-        const characters = files.filter(file => file.endsWith('.character.json'))
-            .map(file => {
-                return {
-                    character: file.split('.character')[0], // Extract the part before `.character`
-                    character_path: file
-            }}) 
+        const characters = GetCharacterList();
         response.json({ status: true, characters });
     } catch (error) {
         response.status(400).json({
@@ -193,6 +173,34 @@ async function CharacterList(request, response) {
             error: error.message,
         });
     }
+}
+
+// Read running processes from file
+function ReadRunningProcesses() {
+    if (fs.existsSync(processFile)) {
+        return JSON.parse(fs.readFileSync(processFile, 'utf-8'));
+    }
+    return {};
+}
+
+// Write running processes to file
+function WriteRunningProcesses(processes) {
+    fs.writeFileSync(processFile, JSON.stringify(processes, null, 2));
+}
+
+function GetCharacterList() {
+    const rootDir = path.resolve('../');
+    const charactersPath = path.join(rootDir, `characters/`);
+    const files = fs.readdirSync(charactersPath);
+    let existCharacters = GetCharacterList();
+    existCharacters = existCharacters.map((item) => item.character);
+    console.log('existCharacters', existCharacters);
+    return files.filter((file) => file.endsWith('.character.json'))
+        .map((file) => {
+            return {
+                character: file.split('.character')[0], // Extract the part before `.character`
+                character_path: path.join(charactersPath, file)
+        }})
 }
 
 // Start the server
