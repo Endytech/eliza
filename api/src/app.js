@@ -23,6 +23,15 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // File to store running process information
 const processFile = 'runningProcesses.json';
 
+// Start character
+app.get('/eliza/character/start', multer().any(), StartCharacter);
+// Stop character
+app.get('/eliza/character/stop', multer().any(), StopCharacter);
+// Run character list
+app.get('/eliza/character/runlist', multer().any(), RunList);
+// Create character
+app.post('/eliza/character', CreateCharacter);
+
 // Helper: Read running processes from file
 function readRunningProcesses() {
     if (fs.existsSync(processFile)) {
@@ -37,7 +46,7 @@ function writeRunningProcesses(processes) {
 }
 
 // API to start Eliza with a specific character
-app.get('/eliza/character/start', async (request, response) => {
+async function StartCharacter(request, response) {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
@@ -68,19 +77,13 @@ app.get('/eliza/character/start', async (request, response) => {
             console.log(`Stdout: ${stdout}`);
         });
 
-        const startTime = Date.now();
-        let isFinished = false;
-        process.on('close', (code) => {
-            isFinished = true;
-            const duration = Date.now() - startTime;
-
-            if (code === 0) {
-                console.log(`Process for ${characterPath} completed successfully in ${duration}ms.`);
-            } else {
-                console.error(`Process for ${characterPath} exited with error code ${code} after ${duration}ms.`);
-            }
-        });
-        console.log(`isFinished ${isFinished}`);
+        // process.on('close', (code) => {
+        //     if (code === 0) {
+        //         console.log(`Process for ${characterPath} completed successfully.`);
+        //     } else {
+        //         console.error(`Process for ${characterPath} exited with error code ${code}.`);
+        //     }
+        // });
 
 // // Build the command
 //         const command = `pnpm`;
@@ -103,12 +106,6 @@ app.get('/eliza/character/start', async (request, response) => {
 //         process.stdout.pipe(logStream);
 //         process.stderr.pipe(logStream);
 //
-// // Handle process termination
-//         process.on('close', (code) => {
-//             console.log(`Process exited with code: ${code}`);
-//             logStream.end();
-//         });
-
         // Save the process PID to the file
         runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPath };
         writeRunningProcesses(runningProcesses);
@@ -120,37 +117,9 @@ app.get('/eliza/character/start', async (request, response) => {
             error: error.message,
         });
     }
-});
+}
 
-// API to stop Eliza for a specific character
-// app.post('/stop-eliza', (req, res) => {
-//     const characterPath = req.query.characterPath;
-//
-//     if (!characterPath) {
-//         return res.status(400).json({ error: "characterPath is required to stop Eliza" });
-//     }
-//
-//     const runningProcesses = readRunningProcesses();
-//     const processInfo = runningProcesses[characterPath];
-//
-//     if (!processInfo) {
-//         return res.status(404).json({ error: `No running process found for ${characterPath}` });
-//     }
-//
-//     // Kill the process
-//     try {
-//         process.kill(processInfo.pid);
-//         console.log(`Eliza stopped for ${characterPath}`);
-//         delete runningProcesses[characterPath];
-//         writeRunningProcesses(runningProcesses);
-//         res.json({ message: "Eliza stopped", character: characterPath });
-//     } catch (error) {
-//         console.error(`Failed to stop process for ${characterPath}:`, error.message);
-//         res.status(500).json({ error: `Failed to stop process for ${characterPath}` });
-//     }
-// });
-
-app.get('/eliza/character/stop', (request, response) => {
+async function StopCharacter(request, response) {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
@@ -162,8 +131,7 @@ app.get('/eliza/character/stop', (request, response) => {
         if (!processInfo) {
             return response.status(404).json({ error: `No running process found for ${characterPath}` });
         }
-        // Kill the process
-        // process.kill(processInfo.pid);
+        // Kill the process and all child processes
         treeKill(processInfo.pid);
         console.log(`Eliza stopped with PID: ${process.pid} for ${characterPath}`);
         delete runningProcesses[character];
@@ -175,13 +143,48 @@ app.get('/eliza/character/stop', (request, response) => {
             error: error.message,
         });
     }
-});
+}
 
-// API to list all running processes
-app.get('/eliza/character/runlist', (req, res) => {
+async function RunList(request, response) {
     const runningProcesses = readRunningProcesses();
-    res.json({ runningProcesses });
-});
+    response.json({ runningProcesses });
+}
+
+async function CreateCharacter(request, response) {
+    try{
+        const { body: { character, data } } = request;
+        if (!data || typeof data !== 'object') {
+            throw new Error("Data must be a JSON object.");
+        }
+
+        if (!data || typeof data !== 'object') {
+            throw new Error("Data must be a JSON object.");
+        }
+
+        try {
+            JSON.stringify(data, null, 2);
+        } catch (error) {
+            throw new Error("Data must be a valid JSON object. Error - ")
+        }
+
+        if (!character || typeof character !== 'string') {
+            throw new Error("Character must be string.");
+        }
+
+        // Define the file path where the JSON will be saved
+        const rootDir = path.resolve('../');
+        const characterPath = path.join(rootDir, `characters/${character}.character.json`);
+
+        // Save the character JSON to the file
+        await fs.writeFile(characterPath, JSON.stringify(character, null, 2), 'utf8');
+        response.json({ status: true, character, character_path: characterPath });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
 
 // Start the server
 app.listen(port, () => {
