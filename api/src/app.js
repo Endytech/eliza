@@ -37,7 +37,7 @@ function writeRunningProcesses(processes) {
 }
 
 // API to start Eliza with a specific character
-app.get('/eliza/character/start', (request, response) => {
+app.get('/eliza/character/start', async (request, response) => {
     try {
         const { query: { character } } = request;
         if (!character) throw new Error('character required');
@@ -68,6 +68,19 @@ app.get('/eliza/character/start', (request, response) => {
             console.log(`Stdout: ${stdout}`);
         });
 
+        const startTime = Date.now();
+        let isFinished = false;
+        process.on('close', (code) => {
+            isFinished = true;
+            const duration = Date.now() - startTime;
+
+            if (code === 0) {
+                console.log(`Process for ${characterPath} completed successfully in ${duration}ms.`);
+            } else {
+                console.error(`Process for ${characterPath} exited with error code ${code} after ${duration}ms.`);
+            }
+        });
+        await new Promise((resolve) => setTimeout(resolve, 5000));
 // // Build the command
 //         const command = `pnpm`;
 //         const args = [
