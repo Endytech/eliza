@@ -168,9 +168,12 @@ async function CreateCharacter(request, response) {
         // Define the file path where the JSON will be saved
         const rootDir = path.resolve('../');
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
-
+        console.log('characterPath', characterPath);
         // Save the character JSON to the file
         await fs.writeFile(characterPath, JSON.stringify(character, null, 2));
+        // (err) => {
+        //     if (err) throw err;
+        // }
         response.json({ status: true, character, character_path: characterPath });
     } catch (error) {
         response.status(400).json({
