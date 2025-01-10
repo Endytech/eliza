@@ -19,19 +19,19 @@ app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: false }));
 
 // Start character
-app.get('/eliza/character/start', StartCharacter);
+app.get('/character/start', StartCharacter);
 // Stop character
-app.get('/eliza/character/stop',StopCharacter);
+app.get('/character/stop',StopCharacter);
 // Run character list
-app.get('/eliza/character/runlist', RunList);
+app.get('/character/runlist', RunList);
 // Create character
-app.post('/eliza/character', CreateCharacter);
+app.post('/character', CreateCharacter);
 // Characters list
-app.get('/eliza/character', CharacterList);
+app.get('/character', CharacterList);
 // Update character
-app.put('/eliza/character', UpdateCharacter);
+app.put('/character', UpdateCharacter);
 // Delete character
-app.delete('/eliza/character', DeleteCharacter);
+app.delete('/character', DeleteCharacter);
 
 
 async function StartCharacter(request, response) {
