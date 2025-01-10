@@ -31,7 +31,10 @@ app.get('/eliza/character/stop',StopCharacter);
 app.get('/eliza/character/runlist', RunList);
 // Create character
 app.post('/eliza/character', CreateCharacter);
+// Characters list
 app.get('/eliza/character', CharacterList);
+// Update character
+app.put('/eliza/character', UpdateCharacter);
 
 
 async function StartCharacter(request, response) {
@@ -138,19 +141,35 @@ async function RunList(request, response) {
     response.json({ runningProcesses });
 }
 
-async function CreateCharacter(request, response) {
+async function CreateCharacter(request, response, update = false) {
     try{
         const { body: { character, data } } = request;
-        if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
         if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         let existCharacters = GetCharacterList();
         existCharacters = existCharacters.map((item) => item.character);
-        if (existCharacters.includes(character)) throw new Error("Character already exists");
-        // Define the file path where the JSON will be saved
+        if (existCharacters.includes(character)) throw new Error(`Character ${character} already exists`);
         const rootDir = path.resolve('../');
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
-        console.log('characterPath', characterPath);
+        await fs.writeFile(characterPath, JSON.stringify(data, null, 2),(err) => {
+            if (err) throw err;
+        });
+        response.json({ status: true, character, character_path: characterPath });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+
+async function UpdateCharacter(request, response) {
+    try{
+        const { body: { character, data } } = request;
+        if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        const rootDir = path.resolve('../');
+        const characterPath = path.join(rootDir, `characters/${character}.character.json`);
         await fs.writeFile(characterPath, JSON.stringify(data, null, 2),(err) => {
             if (err) throw err;
         });
@@ -192,12 +211,11 @@ function GetCharacterList() {
     const rootDir = path.resolve('../');
     const charactersPath = path.join(rootDir, `characters/`);
     const files = fs.readdirSync(charactersPath);
-    return files.filter((file) => file.endsWith('.character.json'))
-        .map((file) => {
-            return {
-                character: file.split('.character')[0], // Extract the part before `.character`
-                character_path: path.join(charactersPath, file)
-        }})
+    return files.filter((file) => file.endsWith('.character.json')).map((file) => {
+        return {
+            character: file.split('.character')[0], // Extract the part before `.character`
+            character_path: path.join(charactersPath, file)
+    }})
 }
 
 // Start the server
