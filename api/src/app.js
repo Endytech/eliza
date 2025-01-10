@@ -1,6 +1,6 @@
 import express from 'express';
 import { exec } from 'child_process';
-import fs, { existsSync } from 'fs';
+import fs from 'fs';
 import * as path from 'path';
 import bodyParser from 'body-parser';
 // import { spawn } from 'child_process';
@@ -50,8 +50,9 @@ async function StartCharacter(request, response) {
         const rootDir = path.resolve('../');
         const logsDir = path.join(rootDir, 'logs');
         const logFile = path.join(logsDir, `logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`);
+        console.log(logsDir)
         // Ensure the logs directory exists
-        if (!existsSync(logsDir)) {
+        if (!fs.existsSync(logsDir)) {
             throw new Error('Does not exist log directory', logsDir);
         }
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
