@@ -8,7 +8,7 @@ import {
     stringToUuid,
     UUID,
     generateImage,
-    parseBooleanFromText,
+    parseBooleanFromText
 } from "@elizaos/core";
 import { generateSDImage } from "../../plugin-sd-generation/src/index.ts";
 import { elizaLogger } from "@elizaos/core";
