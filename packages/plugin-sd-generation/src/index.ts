@@ -98,13 +98,13 @@ export const generateSDImage = async (prompt: string, runtime: IAgentRuntime) =>
                 task_id: `task_${Date.now()}`,
                 webhook: null,
                 prompt,
-                negative_prompt: imageSettings?.negative_prompt || "(((Group photo))), (((more than one person))), (((mutation))), (((deformed))), ((ugly)), blurry, ((bad anatomy)), (((bad proportions))), ((extra limbs)), (((cloned face))), text, signature, Doll, deformed, asymmetric, cropped, censored, frame, mock-up, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, worst quality, low quality, normal quality, jpeg artifacts, watermark, username, blurry, artist name",
+                negative_prompt: imageSettings?.negativePrompt || "(((Group photo))), (((more than one person))), (((mutation))), (((deformed))), ((ugly)), blurry, ((bad anatomy)), (((bad proportions))), ((extra limbs)), (((cloned face))), text, signature, Doll, deformed, asymmetric, cropped, censored, frame, mock-up, lowres, bad anatomy, bad hands, text, error, missing fingers, extra digit, fewer digits, worst quality, low quality, normal quality, jpeg artifacts, watermark, username, blurry, artist name",
                 guidance: 12,
                 strength: 1,
                 sampler: imageSettings?.sampler || "Euler a",
                 steps: 30,
                 override_settings: {
-                    sd_model_checkpoint: imageSettings?.sd_model_checkpoint || sdModelCheckpoint
+                    sd_model_checkpoint: imageSettings?.sdModelCheckpoint || sdModelCheckpoint
                 },
             },
         };

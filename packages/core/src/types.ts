@@ -733,6 +733,8 @@ export type Character = {
             count?: number;
             stylePreset?: string;
             hideWatermark?: boolean;
+            sampler?: string;
+            sdModelCheckpoint?: string;
         };
         voice?: {
             model?: string; // For VITS
