@@ -548,7 +548,7 @@ export class TwitterPostClient {
             elizaLogger.info(`TWITTER_POST_IMAGE_GEN: ${twitterPostImageGen}`);
             if (twitterPostImageGen) {
                 const sdImageGenApiKey = this.runtime.getSetting("SD_IMAGE_GEN_API_KEY");
-                const imageSettings = this.runtime.getSetting("imageSettings");
+                const imageSettings = this.runtime.character?.settings?.imageSettings || {};
                 if (sdImageGenApiKey) {
                     // Call your custom generateImage function
                     const generatedImageResult = await generateSDImage(finalPrompt, this.runtime);

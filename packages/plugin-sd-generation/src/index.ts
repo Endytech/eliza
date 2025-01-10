@@ -79,7 +79,7 @@ const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
 
 export const generateSDImage = async (prompt: string, runtime: IAgentRuntime) => {
     const apiKey = runtime.getSetting("SD_IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
-    const imageSettings = runtime.getSetting("imageSettings");
+    const imageSettings = runtime.character?.settings?.imageSettings || {};
     try {
         elizaLogger.log("Starting image generation with prompt:", prompt);
 
