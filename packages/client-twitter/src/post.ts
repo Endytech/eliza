@@ -7,9 +7,9 @@ import {
     ModelClass,
     stringToUuid,
     UUID,
-    generateImage,
     parseBooleanFromText
 } from "@elizaos/core";
+import { generateImage } from "../../plugin-sd-generation/src/index.ts";
 import { elizaLogger } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
 import { postActionResponseFooter } from "@elizaos/core";
@@ -18,7 +18,6 @@ import { IImageDescriptionService, ServiceType } from "@elizaos/core";
 import { buildConversationThread } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
-import { saveBase64Image, saveHeuristImage } from "../../plugin-image-generation/src/index.ts";
 import { getBrnNews } from "../../plugin-brn/api.ts";
 import fs from "fs";
 import { Buffer } from "buffer";
@@ -529,6 +528,9 @@ export class TwitterPostClient {
 
             // Final cleaning
             cleanedContent = removeQuotes(fixNewLines(cleanedContent));
+            const basePrompt = "masterpiece, best quality, pusheen, {cleanedContent}, <lora:PusheenIXL:1.0>,";
+            const finalPrompt = basePrompt.replace("{cleanedContent}", cleanedContent);
+            elizaLogger.log("Generated final prompt:", finalPrompt);
 
             if (this.isDryRun) {
                 elizaLogger.info(
@@ -543,43 +545,26 @@ export class TwitterPostClient {
             const twitterPostImageGen = parseBooleanFromText(this.runtime.getSetting("TWITTER_POST_IMAGE_GEN"));
             elizaLogger.info(`TWITTER_POST_IMAGE_GEN: ${twitterPostImageGen}`);
             if (twitterPostImageGen) {
-                const imageSettings = this.runtime.getSetting("imageSettings");
-                const images = await generateImage(
-                    {
-                        prompt: cleanedContent,
-                        width: imageSettings?.width,
-                        height: imageSettings?.height,
-                    },
-                    this.runtime
-                );
-                if (images.success && images.data && images.data.length > 0) {
-                    elizaLogger.log(
-                        "Image generation successful, number of images:",
-                        images.data.length
-                    );
-                    for (let i = 0; i < images.data.length; i++) {
-                        const image = images.data[i];
-
-                        // Save the image and get filepath
-                        const filename = `generated_${Date.now()}_${i}`;
-
-                        // Choose save function based on image data format
-                        const filepath = image.startsWith("http")
-                            ? await saveHeuristImage(image, filename)
-                            : saveBase64Image(image, filename);
-
+                try {
+                    const imageSettings = this.runtime.getSetting("imageSettings");
+                    
+                    // Call your custom generateImage function
+                    const generatedImageResult = await generateImage(finalPrompt, this.runtime);
+            
+                    if (generatedImageResult.success && generatedImageResult.imagePath) {
+                        const filepath = generatedImageResult.imagePath;
+            
                         mediaData.push({
                             data: fs.readFileSync(filepath),
-                            mediaType: 'image/png'
-                        })
-                        elizaLogger.log(`Processing image ${i + 1}:`, filename);
-                        elizaLogger.log(
-                            `image:`,
-                            image
-                        );
+                            mediaType: 'image/png', // Adjust based on your generated file format
+                        });
+            
+                        elizaLogger.log(`Image generated and processed successfully: ${filepath}`);
+                    } else {
+                        throw new Error(generatedImageResult.error || "Unknown error occurred during image generation.");
                     }
-                } else {
-                    elizaLogger.error("Image generation failed or returned no data.");
+                } catch (error) {
+                    elizaLogger.error("Error during image generation:", error);
                 }
             }
 

@@ -44,11 +44,6 @@ export async function saveImage(data: string, filename: string, isBase64: boolea
     return filepath;
 }
 
-// const saveGeneratedImage = async (imageData: string, filename: string): Promise<string> => {
-//     const isBase64 = !imageData.startsWith("http");
-//     return await saveImage(imageData, filename, isBase64);
-// };
-
 const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
     const statusUrl = `https://api.runpod.ai/v2/ez7djx79dzbno3/status/${id}`;
 
@@ -82,7 +77,7 @@ const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
     }
 };
 
-const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
+export const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
     const apiKey = runtime.getSetting("SD_IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
     const imageSettings = runtime.getSetting("imageSettings");
     try {
