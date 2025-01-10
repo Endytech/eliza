@@ -9,6 +9,8 @@ import treeKill from 'tree-kill';
 
 const app = express();
 const { port, processFile } = common_config;
+console.log(`port: ${port}`);
+console.log(`processFile1: ${processFile}`);
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
@@ -50,12 +52,14 @@ async function StartCharacter(request, response) {
         const rootDir = path.resolve('../');
         const logsDir = path.join(rootDir, 'logs');
         const logFile = path.join(logsDir, `logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`);
-        console.log(logsDir)
+        console.log('logsDir', logsDir);
         // Ensure the logs directory exists
         if (!fs.existsSync(logsDir)) {
             throw new Error('Does not exist log directory', logsDir);
         }
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
+        console.log('command', command);
+
         const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
             // if (error) {
             //     console.error(`Error run process: ${error.message}`);
@@ -65,6 +69,8 @@ async function StartCharacter(request, response) {
             }
             console.log(`Stdout: ${stdout}`);
         });
+
+        console.log('process', process);
 
         // process.on('close', (code) => {
         //     if (code === 0) {
@@ -227,6 +233,7 @@ function ReadRunningProcesses() {
 
 // Write running processes to file
 function WriteRunningProcesses(processes) {
+    console.log(`processFile: ${processFile}`);
     fs.writeFileSync(processFile, JSON.stringify(processes, null, 2));
 }
 
