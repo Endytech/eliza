@@ -8,9 +8,7 @@ import common_config from './_config';
 import treeKill from 'tree-kill';
 
 const app = express();
-const { port, processFile } = common_config;
-console.log(`port: ${port}`);
-console.log(`processFile1: ${processFile}`);
+const { port } = common_config;
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
@@ -39,7 +37,7 @@ app.delete('/eliza/character', DeleteCharacter);
 async function StartCharacter(request, response) {
     try {
         const { query: { character } } = request;
-        if (!character) throw new Error('character required');
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         const characterPath = `characters/${character}.character.json`;
         const runningProcesses = ReadRunningProcesses();
 
@@ -117,7 +115,7 @@ async function StartCharacter(request, response) {
 async function StopCharacter(request, response) {
     try {
         const { query: { character } } = request;
-        if (!character) throw new Error('character required');
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         const characterPath = `characters/${character}.character.json`;
 
         const runningProcesses = ReadRunningProcesses();
@@ -188,7 +186,7 @@ async function UpdateCharacter(request, response) {
 async function DeleteCharacter(request, response) {
     try{
         const { query: { character } } = request;
-        if (!character) throw new Error('character required');
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         const rootDir = path.resolve('../');
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
         try {
@@ -225,6 +223,8 @@ async function CharacterList(request, response) {
 
 // Read running processes from file
 function ReadRunningProcesses() {
+    const { processFile } = common_config;
+    if (!processFile) throw new Error("processFile required at config");
     if (fs.existsSync(processFile)) {
         return JSON.parse(fs.readFileSync(processFile, 'utf-8'));
     }
@@ -233,7 +233,8 @@ function ReadRunningProcesses() {
 
 // Write running processes to file
 function WriteRunningProcesses(processes) {
-    console.log(`processFile: ${processFile}`);
+    const { processFile } = common_config;
+    if (!processFile) throw new Error("processFile required at config");
     fs.writeFileSync(processFile, JSON.stringify(processes, null, 2));
 }
 
