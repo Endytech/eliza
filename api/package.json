@@ -7,7 +7,6 @@
     "app": "babel-node ./src/app",
     "appwatch": "babel-watch ./src/app",
     "appwatch_nod": "npx nodemon --exec babel-node ./src/app",
-    "news_parser": "babel-node ./src/parsers/news_parser",
     "test": "echo \"Error: no test specified\" && exit 1",
     "compile": "babel src -d dist"
   },
