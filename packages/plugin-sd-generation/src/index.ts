@@ -77,7 +77,7 @@ const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
     }
 };
 
-export const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
+export const generateSDImage = async (prompt: string, runtime: IAgentRuntime) => {
     const apiKey = runtime.getSetting("SD_IMAGE_GEN_API_KEY") || IMAGE_GENERATION_CONSTANTS.API_KEY_SETTING;
     const imageSettings = runtime.getSetting("imageSettings");
     try {
@@ -109,7 +109,7 @@ export const generateImage = async (prompt: string, runtime: IAgentRuntime) => {
             },
         };
         elizaLogger.debug("Starting image generation with params:", params);
-        
+
         const apiUrl =  runtime.getSetting("SD_IMAGE_GEN_API_URL") || IMAGE_GENERATION_CONSTANTS.API_URL;
         const response = await fetch(apiUrl, {
             method: "POST",
@@ -226,7 +226,7 @@ const imageSDGeneration: Action = {
         });
 
         try {
-            const result = await generateImage(imagePrompt, runtime);
+            const result = await generateSDImage(imagePrompt, runtime);
 
             if (result.success) {
                 const { imagePath, additionalData } = result;

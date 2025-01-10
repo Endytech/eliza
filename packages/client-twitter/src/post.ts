@@ -7,9 +7,10 @@ import {
     ModelClass,
     stringToUuid,
     UUID,
-    parseBooleanFromText
+    generateImage,
+    parseBooleanFromText,
 } from "@elizaos/core";
-import { generateImage } from "../../plugin-sd-generation/src/index.ts";
+import { generateSDImage } from "../../plugin-sd-generation/src/index.ts";
 import { elizaLogger } from "@elizaos/core";
 import { ClientBase } from "./base.ts";
 import { postActionResponseFooter } from "@elizaos/core";
@@ -18,6 +19,7 @@ import { IImageDescriptionService, ServiceType } from "@elizaos/core";
 import { buildConversationThread } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
+import { saveBase64Image, saveHeuristImage } from "../../plugin-image-generation/src/index.ts";
 import { getBrnNews } from "../../plugin-brn/api.ts";
 import fs from "fs";
 import { Buffer } from "buffer";
@@ -545,26 +547,62 @@ export class TwitterPostClient {
             const twitterPostImageGen = parseBooleanFromText(this.runtime.getSetting("TWITTER_POST_IMAGE_GEN"));
             elizaLogger.info(`TWITTER_POST_IMAGE_GEN: ${twitterPostImageGen}`);
             if (twitterPostImageGen) {
-                try {
-                    const imageSettings = this.runtime.getSetting("imageSettings");
-                    
+                const sdImageGenApiKey = this.runtime.getSetting("SD_IMAGE_GEN_API_KEY");
+                const imageSettings = this.runtime.getSetting("imageSettings");
+                if (sdImageGenApiKey) {
                     // Call your custom generateImage function
-                    const generatedImageResult = await generateImage(finalPrompt, this.runtime);
-            
+                    const generatedImageResult = await generateSDImage(finalPrompt, this.runtime);
+
                     if (generatedImageResult.success && generatedImageResult.imagePath) {
                         const filepath = generatedImageResult.imagePath;
-            
+
                         mediaData.push({
                             data: fs.readFileSync(filepath),
                             mediaType: 'image/png', // Adjust based on your generated file format
                         });
-            
+
                         elizaLogger.log(`Image generated and processed successfully: ${filepath}`);
                     } else {
-                        throw new Error(generatedImageResult.error || "Unknown error occurred during image generation.");
+                        elizaLogger.error(generatedImageResult.error || "Unknown error occurred during image generation.");
                     }
-                } catch (error) {
-                    elizaLogger.error("Error during image generation:", error);
+                } else {
+                    const images = await generateImage(
+                        {
+                            prompt: cleanedContent,
+                            width: imageSettings?.width,
+                            height: imageSettings?.height,
+                        },
+                        this.runtime
+                    );
+                    if (images.success && images.data && images.data.length > 0) {
+                        elizaLogger.log(
+                            "Image generation successful, number of images:",
+                            images.data.length
+                        );
+                        for (let i = 0; i < images.data.length; i++) {
+                            const image = images.data[i];
+
+                            // Save the image and get filepath
+                            const filename = `generated_${Date.now()}_${i}`;
+
+                            // Choose save function based on image data format
+                            const filepath = image.startsWith("http")
+                                ? await saveHeuristImage(image, filename)
+                                : saveBase64Image(image, filename);
+
+                            mediaData.push({
+                                data: fs.readFileSync(filepath),
+                                mediaType: 'image/png'
+                            })
+                            elizaLogger.log(`Processing image ${i + 1}:`, filename);
+                            elizaLogger.log(
+                                `image:`,
+                                image
+                            );
+                        }
+                    } else {
+                        elizaLogger.error("Image generation failed or returned no data.");
+                    }
                 }
             }
 
