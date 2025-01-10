@@ -140,7 +140,7 @@ async function RunList(request, response) {
 
 async function CreateCharacter(request, response, update = false) {
     try{
-        const { body: { character, data } } = request;
+        const {  query: { character }, body: { data } } = request;
         if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         let existCharacters = GetCharacterList();
@@ -162,7 +162,7 @@ async function CreateCharacter(request, response, update = false) {
 
 async function UpdateCharacter(request, response) {
     try{
-        const { body: { character, data } } = request;
+        const {  query: { character }, body: { data } } = request;
         if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         const rootDir = path.resolve('../');
@@ -189,15 +189,12 @@ async function DeleteCharacter(request, response) {
         } catch {
             throw new Error(`Character file not found: ${characterPath}`);
         }
-        await fs.unlink(characterPath);
+        await fs.unlinkSync(characterPath);
         const runningProcesses = ReadRunningProcesses();
         if (runningProcesses[character]) {
             delete runningProcesses[character];
             WriteRunningProcesses(runningProcesses);
         }
-        // await fs.writeFile(characterPath, JSON.stringify(data, null, 2),(err) => {
-        //     if (err) throw err;
-        // });
         response.json({ status: true });
     } catch (error) {
         response.status(400).json({
