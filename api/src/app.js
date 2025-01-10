@@ -39,8 +39,12 @@ async function StartCharacter(request, response) {
         const { query: { character } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         const characterPath = `characters/${character}.character.json`;
-        const runningProcesses = ReadRunningProcesses();
 
+        let existCharacters = GetCharacterList();
+        existCharacters = existCharacters.map((item) => item.character);
+        if (!existCharacters.includes(character)) throw new Error(`Character ${character} does not exists`);
+
+        const runningProcesses = ReadRunningProcesses();
         // Check if process for this character is already running
         if (runningProcesses[character]) {
             return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
@@ -50,7 +54,6 @@ async function StartCharacter(request, response) {
         const rootDir = path.resolve('../');
         const logsDir = path.join(rootDir, 'logs');
         const logFile = path.join(logsDir, `logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`);
-        console.log('logsDir', logsDir);
         // Ensure the logs directory exists
         if (!fs.existsSync(logsDir)) {
             throw new Error('Does not exist log directory', logsDir);
@@ -67,8 +70,6 @@ async function StartCharacter(request, response) {
             }
             console.log(`Stdout: ${stdout}`);
         });
-
-        console.log('process', process);
 
         // process.on('close', (code) => {
         //     if (code === 0) {
