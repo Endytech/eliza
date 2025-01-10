@@ -59,8 +59,6 @@ async function StartCharacter(request, response) {
             throw new Error('Does not exist log directory', logsDir);
         }
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
-        console.log('command', command);
-
         const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
             // if (error) {
             //     console.error(`Error run process: ${error.message}`);
@@ -68,7 +66,7 @@ async function StartCharacter(request, response) {
             if (stderr) {
                 console.error(`Stderr when run process: ${stderr}`)
             }
-            console.log(`Stdout: ${stdout}`);
+            // console.log(`Stdout: ${stdout}`);
         });
 
         // process.on('close', (code) => {
@@ -198,6 +196,7 @@ async function DeleteCharacter(request, response) {
         await fs.unlinkSync(characterPath);
         const runningProcesses = ReadRunningProcesses();
         if (runningProcesses[character]) {
+            treeKill(runningProcesses[character].pid);
             delete runningProcesses[character];
             WriteRunningProcesses(runningProcesses);
         }
