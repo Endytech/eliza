@@ -1,11 +1,9 @@
 import express from 'express';
 import { exec } from 'child_process';
-// import path from 'path';
-import fs from 'fs';
-import { mkdirSync, existsSync } from 'fs';
+import fs, { existsSync } from 'fs';
 import * as path from 'path';
 import bodyParser from 'body-parser';
-import { spawn } from 'child_process';
+// import { spawn } from 'child_process';
 // import export_ipmort_config from './_config';
 import treeKill from 'tree-kill';
 
@@ -35,6 +33,8 @@ app.post('/eliza/character', CreateCharacter);
 app.get('/eliza/character', CharacterList);
 // Update character
 app.put('/eliza/character', UpdateCharacter);
+// Delete character
+app.delete('/eliza/character', DeleteCharacter);
 
 
 async function StartCharacter(request, response) {
@@ -174,6 +174,34 @@ async function UpdateCharacter(request, response) {
             if (err) throw err;
         });
         response.json({ status: true, character, character_path: characterPath });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+async function DeleteCharacter(request, response) {
+    try{
+        const { query: { character } } = request;
+        if (!character) throw new Error('character required');
+        const rootDir = path.resolve('../');
+        const characterPath = path.join(rootDir, `characters/${character}.character.json`);
+        try {
+            fs.accessSync(characterPath);
+        } catch {
+            throw new Error(`Character file not found: ${characterPath}`);
+        }
+        await fs.unlink(characterPath);
+        const runningProcesses = ReadRunningProcesses();
+        if (runningProcesses[character]) {
+            delete runningProcesses[character];
+            WriteRunningProcesses(runningProcesses);
+        }
+        // await fs.writeFile(characterPath, JSON.stringify(data, null, 2),(err) => {
+        //     if (err) throw err;
+        // });
+        response.json({ status: true });
     } catch (error) {
         response.status(400).json({
             status: false,
