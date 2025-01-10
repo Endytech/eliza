@@ -1,3 +1,4 @@
 module.exports = {
-    Host:'',
+    port: 3100,
+    process_file: 'runningProcesses.json',
 };

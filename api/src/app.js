@@ -4,11 +4,11 @@ import fs, { existsSync } from 'fs';
 import * as path from 'path';
 import bodyParser from 'body-parser';
 // import { spawn } from 'child_process';
-// import export_ipmort_config from './_config';
+import common_config from './_config';
 import treeKill from 'tree-kill';
 
 const app = express();
-const port = 3100;
+const { port, processFile } = common_config;
 app.use((req, res, next) => {
     res.header('Access-Control-Allow-Origin', '*');
     res.header('Access-Control-Allow-Methods', 'GET,PUT,POST,DELETE');
@@ -17,9 +17,6 @@ app.use((req, res, next) => {
 });
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: false }));
-
-// File to store running process information
-const processFile = 'runningProcesses.json';
 
 // Start character
 app.get('/eliza/character/start', StartCharacter);
