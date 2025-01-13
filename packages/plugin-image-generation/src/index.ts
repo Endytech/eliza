@@ -82,12 +82,15 @@ const imageGeneration: Action = {
         await validateImageGenConfig(runtime);
 
         const anthropicApiKeyOk = !!runtime.getSetting("ANTHROPIC_API_KEY");
+        const nineteenAiApiKeyOk = !!runtime.getSetting("NINETEEN_AI_API_KEY");
         const togetherApiKeyOk = !!runtime.getSetting("TOGETHER_API_KEY");
         const heuristApiKeyOk = !!runtime.getSetting("HEURIST_API_KEY");
         const falApiKeyOk = !!runtime.getSetting("FAL_API_KEY");
         const openAiApiKeyOk = !!runtime.getSetting("OPENAI_API_KEY");
         const veniceApiKeyOk = !!runtime.getSetting("VENICE_API_KEY");
-        const livepeerGatewayUrlOk = !!runtime.getSetting("LIVEPEER_GATEWAY_URL");
+        const livepeerGatewayUrlOk = !!runtime.getSetting(
+            "LIVEPEER_GATEWAY_URL"
+        );
 
         return (
             anthropicApiKeyOk ||
@@ -96,6 +99,7 @@ const imageGeneration: Action = {
             falApiKeyOk ||
             openAiApiKeyOk ||
             veniceApiKeyOk ||
+            nineteenAiApiKeyOk ||
             livepeerGatewayUrlOk
         );
     },
@@ -190,15 +194,57 @@ Ensure that your prompt is detailed, vivid, and incorporates all the elements me
                 prompt: imagePrompt,
                 width: options.width || imageSettings.width || 1024,
                 height: options.height || imageSettings.height || 1024,
-                ...(options.count != null || imageSettings.count != null ? { count: options.count || imageSettings.count || 1 } : {}),
-                ...(options.negativePrompt != null || imageSettings.negativePrompt != null ? { negativePrompt: options.negativePrompt || imageSettings.negativePrompt } : {}),
-                ...(options.numIterations != null || imageSettings.numIterations != null ? { numIterations: options.numIterations || imageSettings.numIterations } : {}),
-                ...(options.guidanceScale != null || imageSettings.guidanceScale != null ? { guidanceScale: options.guidanceScale || imageSettings.guidanceScale } : {}),
-                ...(options.seed != null || imageSettings.seed != null ? { seed: options.seed || imageSettings.seed } : {}),
-                ...(options.modelId != null || imageSettings.modelId != null ? { modelId: options.modelId || imageSettings.modelId } : {}),
-                ...(options.jobId != null || imageSettings.jobId != null ? { jobId: options.jobId || imageSettings.jobId } : {}),
-                ...(options.stylePreset != null || imageSettings.stylePreset != null ? { stylePreset: options.stylePreset || imageSettings.stylePreset } : {}),
-                ...(options.hideWatermark != null || imageSettings.hideWatermark != null ? { hideWatermark: options.hideWatermark || imageSettings.hideWatermark } : {}),
+                ...(options.count != null || imageSettings.count != null
+                    ? { count: options.count || imageSettings.count || 1 }
+                    : {}),
+                ...(options.negativePrompt != null ||
+                imageSettings.negativePrompt != null
+                    ? {
+                          negativePrompt:
+                              options.negativePrompt ||
+                              imageSettings.negativePrompt,
+                      }
+                    : {}),
+                ...(options.numIterations != null ||
+                imageSettings.numIterations != null
+                    ? {
+                          numIterations:
+                              options.numIterations ||
+                              imageSettings.numIterations,
+                      }
+                    : {}),
+                ...(options.guidanceScale != null ||
+                imageSettings.guidanceScale != null
+                    ? {
+                          guidanceScale:
+                              options.guidanceScale ||
+                              imageSettings.guidanceScale,
+                      }
+                    : {}),
+                ...(options.seed != null || imageSettings.seed != null
+                    ? { seed: options.seed || imageSettings.seed }
+                    : {}),
+                ...(options.modelId != null || imageSettings.modelId != null
+                    ? { modelId: options.modelId || imageSettings.modelId }
+                    : {}),
+                ...(options.jobId != null || imageSettings.jobId != null
+                    ? { jobId: options.jobId || imageSettings.jobId }
+                    : {}),
+                ...(options.stylePreset != null ||
+                imageSettings.stylePreset != null
+                    ? {
+                          stylePreset:
+                              options.stylePreset || imageSettings.stylePreset,
+                      }
+                    : {}),
+                ...(options.hideWatermark != null ||
+                imageSettings.hideWatermark != null
+                    ? {
+                          hideWatermark:
+                              options.hideWatermark ||
+                              imageSettings.hideWatermark,
+                      }
+                    : {}),
             },
             runtime
         );
@@ -360,3 +406,5 @@ export const imageGenerationPlugin: Plugin = {
     evaluators: [],
     providers: [],
 };
+
+export default imageGenerationPlugin;
