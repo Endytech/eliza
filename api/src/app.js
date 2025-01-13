@@ -139,7 +139,7 @@ async function StopCharacter(request, response) {
 
 async function RunList(request, response) {
     const runningProcesses = ReadRunningProcesses();
-    response.json({ runningProcesses });
+    response.json({ characters: runningProcesses });
 }
 
 async function CreateCharacter(request, response, update = false) {
