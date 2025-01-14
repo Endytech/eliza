@@ -102,11 +102,12 @@ async function StartCharacter(request, response) {
 //         process.stdout.pipe(logStream);
 //         process.stderr.pipe(logStream);
 //
+        const characterPathFull = path.join(rootDir, characterPath);
         // Save the process PID to the file
-        runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPath };
+        runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPathFull };
         WriteRunningProcesses(runningProcesses);
-        console.log(`Started eliza process with PID: ${process.pid} for ${characterPath}`);
-        response.json({ status: true, pid: process.pid, log_file: logFile, character, character_path: characterPath });
+        console.log(`Started eliza process with PID: ${process.pid} for ${characterPathFull}`);
+        response.json({ status: true, pid: process.pid, log_file: logFile, character, character_path: characterPathFull });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -119,17 +120,18 @@ async function StopCharacter(request, response) {
     try {
         const { query: { character } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-        const characterPath = `characters/${character}.character.json`;
+        const rootDir = path.resolve('../');
+        const characterPathFull = path.join(rootDir, `characters/${character}.character.json`);
 
         const runningProcesses = ReadRunningProcesses();
         const processInfo = runningProcesses[character];
 
         if (!processInfo) {
-            return response.status(404).json({ error: `No running process found for ${characterPath}` });
+            return response.status(404).json({ error: `No running process found for ${characterPathFull}` });
         }
         // Kill the process and all child processes
         treeKill(processInfo.pid);
-        console.log(`Eliza stopped with PID: ${process.pid} for ${characterPath}`);
+        console.log(`Eliza stopped with PID: ${process.pid} for ${characterPathFull}`);
         delete runningProcesses[character];
         WriteRunningProcesses(runningProcesses);
         response.json({ status: true });
