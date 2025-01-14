@@ -27,7 +27,9 @@ app.get('/character/runlist', RunList);
 // Create character
 app.post('/character', CreateCharacter);
 // Characters list
-app.get('/character', CharacterList);
+app.get('/characters', CharacterList);
+// Get Character
+app.get('/character', CharacterView);
 // Update character
 app.put('/character', UpdateCharacter);
 // Delete character
@@ -128,7 +130,7 @@ async function StopCharacter(request, response) {
         console.log(`Eliza stopped with PID: ${process.pid} for ${characterPath}`);
         delete runningProcesses[character];
         WriteRunningProcesses(runningProcesses);
-        response.json({ status: true, character, character_path: characterPath });
+        response.json({ status: true });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -213,6 +215,25 @@ async function CharacterList(request, response) {
     try{
         const characters = GetCharacterList();
         response.json({ status: true, characters });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+
+async function CharacterView(request, response) {
+    try{
+        const { query: { character } } = request;
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        const rootDir = path.resolve('../');
+        const characterPath = path.join(rootDir, `characters/${character}.character.json`);
+        let characterData = {};
+        if (fs.existsSync(characterPath)) {
+            characterData = JSON.parse(fs.readFileSync(characterPath, 'utf-8'));
+        }
+        response.json({ status: true, ...characterData });
     } catch (error) {
         response.status(400).json({
             status: false,
