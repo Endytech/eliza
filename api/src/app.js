@@ -24,6 +24,8 @@ app.get('/character/start', StartCharacter);
 app.get('/character/stop',StopCharacter);
 // Run character list
 app.get('/character/runlist', RunList);
+// View character log
+app.get('/character/log', LogView);
 // Create character
 app.post('/character', CreateCharacter);
 // Characters list
@@ -234,6 +236,27 @@ async function CharacterView(request, response) {
             characterData = JSON.parse(fs.readFileSync(characterPath, 'utf-8'));
         }
         response.json({ status: true, character: characterData });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+
+async function LogView(request, response) {
+    try{
+        const { query: { character } } = request;
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        const runningProcesses = ReadRunningProcesses();
+        let logData = '';
+        if (runningProcesses[character]) {
+            const logPath = runningProcesses[character].log_file;
+            if (fs.existsSync(logPath)) {
+                logData = fs.readFileSync(characterPath, 'utf-8');
+            }
+        } else throw new Error(`Character not found in running processes`);
+        response.json({ status: true, log: logData });
     } catch (error) {
         response.status(400).json({
             status: false,
