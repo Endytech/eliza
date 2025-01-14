@@ -258,7 +258,7 @@ async function LogView(request, response) {
                 logData = fs.readFileSync(logPath, 'utf-8');
             }
         } else throw new Error(`Character not found in running processes`);
-        response.json({ status: true, log: logData });
+        response.json({ status: true, log: logData, view: logData.split('\n') });
     } catch (error) {
         response.status(400).json({
             status: false,
