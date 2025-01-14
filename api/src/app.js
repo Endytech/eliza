@@ -233,7 +233,7 @@ async function CharacterView(request, response) {
         if (fs.existsSync(characterPath)) {
             characterData = JSON.parse(fs.readFileSync(characterPath, 'utf-8'));
         }
-        response.json({ status: true, ...characterData });
+        response.json(characterData);
     } catch (error) {
         response.status(400).json({
             status: false,
