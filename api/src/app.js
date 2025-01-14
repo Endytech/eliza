@@ -253,7 +253,7 @@ async function LogView(request, response) {
         if (runningProcesses[character]) {
             const logPath = runningProcesses[character].log_file;
             if (fs.existsSync(logPath)) {
-                logData = fs.readFileSync(characterPath, 'utf-8');
+                logData = fs.readFileSync(logPath, 'utf-8');
             }
         } else throw new Error(`Character not found in running processes`);
         response.json({ status: true, log: logData });
