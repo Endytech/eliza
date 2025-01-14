@@ -40,9 +40,11 @@ app.delete('/character', DeleteCharacter);
 
 async function StartCharacter(request, response) {
     try {
-        const { query: { character } } = request;
+        const { query: { character, restart } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         const characterPath = `characters/${character}.character.json`;
+
+        const isRestart = restart === 'true' || restart === '1' || false;
 
         let existCharacters = GetCharacterList();
         existCharacters = existCharacters.map((item) => item.character);
@@ -51,9 +53,15 @@ async function StartCharacter(request, response) {
         const runningProcesses = ReadRunningProcesses();
         // Check if process for this character is already running
         if (runningProcesses[character]) {
-            return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
+            if (isRestart) {
+                treeKill(runningProcesses[character].pid);
+                delete runningProcesses[character];
+                WriteRunningProcesses(runningProcesses);
+                await new Promise((resolve) => setTimeout(resolve, 5000));
+            } else {
+                return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
+            }
         }
-
         // Resolve the root directory and logs directory
         const rootDir = path.resolve('../');
         const logsDir = path.join(rootDir, 'logs');
@@ -134,6 +142,7 @@ async function StopCharacter(request, response) {
         console.log(`Eliza stopped with PID: ${process.pid} for ${characterPathFull}`);
         delete runningProcesses[character];
         WriteRunningProcesses(runningProcesses);
+        await new Promise((resolve) => setTimeout(resolve, 2000));
         response.json({ status: true });
     } catch (error) {
         response.status(400).json({
@@ -205,6 +214,7 @@ async function DeleteCharacter(request, response) {
             treeKill(runningProcesses[character].pid);
             delete runningProcesses[character];
             WriteRunningProcesses(runningProcesses);
+            await new Promise((resolve) => setTimeout(resolve, 2000));
         }
         response.json({ status: true });
     } catch (error) {
