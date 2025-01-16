@@ -407,7 +407,7 @@ async function LogView1(request, response) {
                 });
             }
         } else throw new Error(`Character not found in running processes`);
-        response.json({ status: true, log: logData, view: logData.split('\n') });
+        // response.json({ status: true, log: logData, view: logData.split('\n') });
     } catch (error) {
         response.status(400).json({
             status: false,
