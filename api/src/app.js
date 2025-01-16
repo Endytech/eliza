@@ -3,10 +3,9 @@ import { exec } from 'child_process';
 import fs from 'fs';
 import * as path from 'path';
 import bodyParser from 'body-parser';
-// import { spawn } from 'child_process';
+import { spawn } from 'child_process';
 import common_config from './_config';
 import treeKill from 'tree-kill';
-
 const app = express();
 const { port } = common_config;
 app.use((req, res, next) => {
@@ -54,7 +53,9 @@ async function StartCharacter(request, response) {
         // Check if process for this character is already running
         if (runningProcesses[character]) {
             if (isRestart) {
-                treeKill(runningProcesses[character].pid);
+                treeKill(runningProcesses[character].pid, 'SIGTERM', (err) => {
+                    if (err) console.error('Failed to kill process:', err);
+                });
                 delete runningProcesses[character];
                 WriteRunningProcesses(runningProcesses);
                 await new Promise((resolve) => setTimeout(resolve, 5000));
@@ -70,53 +71,54 @@ async function StartCharacter(request, response) {
         if (!fs.existsSync(logsDir)) {
             throw new Error('Does not exist log directory', logsDir);
         }
-        const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
-        const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
-            if (error) {
-                console.error(`Error run process: ${error.message}`);
-            }
-            if (stderr) {
-                console.error(`Stderr when run process: ${stderr}`)
-            }
-            // console.log(`Stdout: ${stdout}`);
+        // const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
+        // const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
+        //     if (error) {
+        //         console.error(`Error run process: ${error.message}`);
+        //     }
+        //     if (stderr) {
+        //         console.error(`Stderr when run process: ${stderr}`)
+        //     }
+        //     // console.log(`Stdout: ${stdout}`);
+        // });
+        //
+// Build the command
+        const command = `pnpm`;
+        const args = [
+            'start:debug',
+            `--characters=${characterPath}`,
+        ];
+        // console.log('Command:', command, args);
+
+// Spawn the process
+        const process = spawn(command, args, {
+            cwd: rootDir,
+            shell: true, // Required for piping (`tee`)
+            stdio: ['inherit', 'pipe', 'pipe'], // Pipe output for logs
         });
+        // console.log('process', process);
+
+        // const child = spawn('node', ['your_script.js'], {
+        //     detached: true,
+        //     stdio: 'ignore',
+        // });
+        //
+        // child.unref();
+// Log stdout and stderr to a file
+        const logStream = fs.createWriteStream(logFile, { flags: 'a' });
+        process.stdout.pipe(logStream);
+        process.stderr.pipe(logStream);
+
+        const characterPathFull = path.join(rootDir, characterPath);
 
         process.on('close', (code) => {
             if (code === 0) {
-                console.log(`Process for ${characterPath} completed successfully.`);
+                console.log(`Process for ${characterPathFull} completed successfully.`);
             } else {
-                console.error(`Process for ${characterPath} exited with error code ${code}.`);
+                console.error(`Process for ${characterPathFull} exited with error code ${code}.`);
             }
         });
 
-// // Build the command
-//         const command = `pnpm`;
-//         const args = [
-//             'start:debug',
-//             `--characters=${characterPath}`,
-//         ];
-//         console.log('Command:', command, args);
-//
-// // Spawn the process
-//         const process = spawn(command, args, {
-//             cwd: rootDir,
-//             shell: true, // Required for piping (`tee`)
-//             stdio: ['inherit', 'pipe', 'pipe'], // Pipe output for logs
-//         });
-//         console.log('process', process);
-//
-//         const child = spawn('node', ['your_script.js'], {
-//             detached: true,
-//             stdio: 'ignore',
-//         });
-//
-//         child.unref();
-// // Log stdout and stderr to a file
-//         const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-//         process.stdout.pipe(logStream);
-//         process.stderr.pipe(logStream);
-//
-        const characterPathFull = path.join(rootDir, characterPath);
         // Save the process PID to the file
         runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPathFull };
         WriteRunningProcesses(runningProcesses);
@@ -144,7 +146,9 @@ async function StopCharacter(request, response) {
             return response.status(404).json({ error: `No running process found for ${characterPathFull}` });
         }
         // Kill the process and all child processes
-        treeKill(processInfo.pid);
+        treeKill(processInfo.pid, 'SIGTERM', (err) => {
+            if (err) console.error('Failed to kill process:', err);
+        });
         console.log(`Eliza stopped with PID: ${process.pid} for ${characterPathFull}`);
         delete runningProcesses[character];
         WriteRunningProcesses(runningProcesses);
@@ -217,7 +221,9 @@ async function DeleteCharacter(request, response) {
         await fs.unlinkSync(characterPath);
         const runningProcesses = ReadRunningProcesses();
         if (runningProcesses[character]) {
-            treeKill(runningProcesses[character].pid);
+            treeKill(runningProcesses[character].pid, 'SIGTERM', (err) => {
+                if (err) console.error('Failed to kill process:', err);
+            });
             delete runningProcesses[character];
             WriteRunningProcesses(runningProcesses);
             await new Promise((resolve) => setTimeout(resolve, 2000));
