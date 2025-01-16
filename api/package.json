@@ -16,7 +16,6 @@
     "body-parser": "^1.20.3",
     "dotted": "^0.1.1",
     "express": "^4.17.1",
-    "fs-backwards-stream": "^1.0.0",
     "got": "^11.8.5",
     "moment": "^2.29.1",
     "tree-kill": "^1.2.2"

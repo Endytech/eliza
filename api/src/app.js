@@ -7,8 +7,6 @@ import { spawn } from 'child_process';
 import common_config from './_config';
 import treeKill from 'tree-kill';
 import readline from 'readline';
-// import reverse from 'reverse-stream';
-import backwardsStream from 'fs-backwards-stream';
 
 const app = express();
 const { port } = common_config;
@@ -373,12 +371,9 @@ async function LogViewStream(request, response) {
         if (runningProcesses[character]) {
             const logPath = runningProcesses[character].log_file;
             if (fs.existsSync(logPath)) {
-                // const fileStream = fs.createReadStream(logPath, { encoding: 'utf8' });
-                //
-                // const reversedStream = fileStream.pipe(reverse());
-                const reversedStream = backwardsStream(logPath);
+                const fileStream = fs.createReadStream(logPath, { encoding: 'utf8' });
                 const rl = readline.createInterface({
-                    input: reversedStream,
+                    input: fileStream,
                     crlfDelay: Infinity
                 });
                 // Set headers for streaming response
