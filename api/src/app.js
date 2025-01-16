@@ -72,22 +72,22 @@ async function StartCharacter(request, response) {
         }
         const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
         const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
-            // if (error) {
-            //     console.error(`Error run process: ${error.message}`);
-            // }
+            if (error) {
+                console.error(`Error run process: ${error.message}`);
+            }
             if (stderr) {
                 console.error(`Stderr when run process: ${stderr}`)
             }
             // console.log(`Stdout: ${stdout}`);
         });
 
-        // process.on('close', (code) => {
-        //     if (code === 0) {
-        //         console.log(`Process for ${characterPath} completed successfully.`);
-        //     } else {
-        //         console.error(`Process for ${characterPath} exited with error code ${code}.`);
-        //     }
-        // });
+        process.on('close', (code) => {
+            if (code === 0) {
+                console.log(`Process for ${characterPath} completed successfully.`);
+            } else {
+                console.error(`Process for ${characterPath} exited with error code ${code}.`);
+            }
+        });
 
 // // Build the command
 //         const command = `pnpm`;
@@ -105,6 +105,12 @@ async function StartCharacter(request, response) {
 //         });
 //         console.log('process', process);
 //
+//         const child = spawn('node', ['your_script.js'], {
+//             detached: true,
+//             stdio: 'ignore',
+//         });
+//
+//         child.unref();
 // // Log stdout and stderr to a file
 //         const logStream = fs.createWriteStream(logFile, { flags: 'a' });
 //         process.stdout.pipe(logStream);
