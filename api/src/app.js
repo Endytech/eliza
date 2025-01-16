@@ -26,9 +26,7 @@ app.get('/character/stop',StopCharacter);
 // Run character list
 app.get('/character/runlist', RunList);
 // View character log
-app.get('/character/log', LogView);
-app.get('/character/log1', LogViewStream);
-// app.get('/character/log2', processLogsAndReportErrors());
+app.get('/character/log', LogViewStream);
 // Create character
 app.post('/character', CreateCharacter);
 // Characters list
