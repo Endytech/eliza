@@ -388,12 +388,13 @@ async function LogView1(request, response) {
                 // response.setHeader('Transfer-Encoding', 'chunked');
                 console.log('read...');
                 rl.on('line', (line) => {
-                    console.log('read line');
+                    console.log('line', line);
+                    console.log('JSON.stringify({ line }', JSON.stringify({ line }));
                     // console.log('json line', JSON.stringify({ line }));
                     // Send each line as a chunk to the client
                     // response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
-                    // response.write(line);  // Wrapping the line in a JSON object, send as a chunk
-                    response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
+                    response.write(line);  // Wrapping the line in a JSON object, send as a chunk
+                    // response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
                 });
 
                 rl.on('close', () => {
