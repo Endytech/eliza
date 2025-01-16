@@ -385,7 +385,7 @@ async function LogView1(request, response) {
                 });
 
                 // Set headers for streaming response
-                response.setHeader('Transfer-Encoding', 'chunked');
+                // response.setHeader('Transfer-Encoding', 'chunked');
                 console.log('read...');
                 rl.on('line', (line) => {
                     console.log('read line');
