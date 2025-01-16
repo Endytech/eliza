@@ -386,14 +386,14 @@ async function LogView1(request, response) {
 
                 // Set headers for streaming response
                 response.setHeader('Transfer-Encoding', 'chunked');
-                response.removeHeader('Content-Length'); // Ensure Content-Length is not set
                 console.log('read...');
                 rl.on('line', (line) => {
-                    // console.log('line', line);
+                    console.log('read line');
                     // console.log('json line', JSON.stringify({ line }));
                     // Send each line as a chunk to the client
                     // response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
-                    response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
+                    response.write(line);  // Wrapping the line in a JSON object, send as a chunk
+                    // response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
                 });
 
                 rl.on('close', () => {
