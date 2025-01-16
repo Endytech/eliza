@@ -386,14 +386,17 @@ async function LogView1(request, response) {
 
                 // Set headers for streaming response
                 // response.setHeader('Transfer-Encoding', 'chunked');
-
+                console.log('read...');
                 rl.on('line', (line) => {
+                    console.log('line', line);
+                    console.log('json line', JSON.stringify({ line }));
                     // Send each line as a chunk to the client
                     // response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
                     response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
                 });
 
                 rl.on('close', () => {
+                    console.log('ended');
                     // End the response once the file is completely read
                     response.end();
                 });
