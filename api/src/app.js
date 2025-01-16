@@ -6,7 +6,7 @@ import bodyParser from 'body-parser';
 import { spawn } from 'child_process';
 import common_config from './_config';
 import treeKill from 'tree-kill';
-const readline = require('readline');
+import readline from 'readline';
 
 const app = express();
 const { port } = common_config;
@@ -27,7 +27,7 @@ app.get('/character/stop',StopCharacter);
 app.get('/character/runlist', RunList);
 // View character log
 app.get('/character/log', LogView);
-// app.get('/character/log1', LogView1);
+app.get('/character/log1', LogView1);
 // app.get('/character/log2', processLogsAndReportErrors());
 // Create character
 app.post('/character', CreateCharacter);
@@ -362,55 +362,55 @@ async function LogView(request, response) {
         });
     }
 }
-// async function LogView1(request, response) {
-//     try{
-//         const { query: { character } } = request;
-//         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-//         const runningProcesses = ReadRunningProcesses();
-//         let logData = '';
-//         if (runningProcesses[character]) {
-//             const logPath = runningProcesses[character].log_file;
-//             if (fs.existsSync(logPath)) {
-//                 const logStream = fs.createReadStream(logPath, { encoding: 'utf8', highWaterMark: 1024 * 1024 }); // 1MB chunks
-//                 // Pipe the log stream directly to the response
-//                 logStream.pipe(response);
-//                 logStream.on('error', (error) => {
-//                     throw new Error(`Error reading log file: ${error.message}`);
-//                 });
-//
-//                 const fileStream = fs.createReadStream(logPath, { encoding: 'utf8' });
-//                 const rl = readline.createInterface({
-//                     input: fileStream,
-//                     crlfDelay: Infinity
-//                 });
-//
-//                 // Set headers for streaming response
-//                 // response.setHeader('Transfer-Encoding', 'chunked');
-//
-//                 rl.on('line', (line) => {
-//                     // Send each line as a chunk to the client
-//                     // response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
-//                     response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
-//                 });
-//
-//                 rl.on('close', () => {
-//                     // End the response once the file is completely read
-//                     response.end();
-//                 });
-//
-//                 rl.on('error', (error) => {
-//                     throw new Error(`Error reading log file: ${error.message}`);
-//                 });
-//             }
-//         } else throw new Error(`Character not found in running processes`);
-//         response.json({ status: true, log: logData, view: logData.split('\n') });
-//     } catch (error) {
-//         response.status(400).json({
-//             status: false,
-//             error: error.message,
-//         });
-//     }
-// }
+async function LogView1(request, response) {
+    try{
+        const { query: { character } } = request;
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        const runningProcesses = ReadRunningProcesses();
+        let logData = '';
+        if (runningProcesses[character]) {
+            const logPath = runningProcesses[character].log_file;
+            if (fs.existsSync(logPath)) {
+                // const logStream = fs.createReadStream(logPath, { encoding: 'utf8', highWaterMark: 1024 * 1024 }); // 1MB chunks
+                // // Pipe the log stream directly to the response
+                // logStream.pipe(response);
+                // logStream.on('error', (error) => {
+                //     throw new Error(`Error reading log file: ${error.message}`);
+                // });
+
+                const fileStream = fs.createReadStream(logPath, { encoding: 'utf8' });
+                const rl = readline.createInterface({
+                    input: fileStream,
+                    crlfDelay: Infinity
+                });
+
+                // Set headers for streaming response
+                // response.setHeader('Transfer-Encoding', 'chunked');
+
+                rl.on('line', (line) => {
+                    // Send each line as a chunk to the client
+                    // response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
+                    response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
+                });
+
+                rl.on('close', () => {
+                    // End the response once the file is completely read
+                    response.end();
+                });
+
+                rl.on('error', (error) => {
+                    throw new Error(`Error reading log file: ${error.message}`);
+                });
+            }
+        } else throw new Error(`Character not found in running processes`);
+        response.json({ status: true, log: logData, view: logData.split('\n') });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
 
 // Read running processes from file
 function ReadRunningProcesses() {
