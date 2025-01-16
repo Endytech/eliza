@@ -6,6 +6,8 @@ import bodyParser from 'body-parser';
 import { spawn } from 'child_process';
 import common_config from './_config';
 import treeKill from 'tree-kill';
+const readline = require('readline');
+
 const app = express();
 const { port } = common_config;
 app.use((req, res, next) => {
@@ -25,6 +27,8 @@ app.get('/character/stop',StopCharacter);
 app.get('/character/runlist', RunList);
 // View character log
 app.get('/character/log', LogView);
+app.get('/character/log1', LogView1);
+app.get('/character/log2', processLogsAndReportErrors());
 // Create character
 app.post('/character', CreateCharacter);
 // Characters list
@@ -36,6 +40,75 @@ app.put('/character', UpdateCharacter);
 // Delete character
 app.delete('/character', DeleteCharacter);
 
+async function processLogsAndReportErrors(request, response) {
+    try {
+        console.log('Processing logs...');
+        const runningProcesses = ReadRunningProcesses();
+        let notification = {};
+        for (const [key, process] of Object.entries(runningProcesses)) {
+            const logFile = process.log_file;
+
+            try {
+                console.log(`Reading logs for ${key} (${logFile})...`);
+                const errorMessages = [];
+                const errorBlocks = [];
+                let isErrorBlock = false;
+                // Create a read stream
+                const fileStream = fs.createReadStream(logFile, { encoding: 'utf8' });
+                // Use readline to process the file line-by-line
+                const rl = readline.createInterface({
+                    input: fileStream,
+                    crlfDelay: Infinity // Handles different newline formats
+                });
+
+                console.log('Processing file in chunks...');
+
+                // for await (const line of rl) {
+                //     // Check for errors in the current line
+                //     if (line.includes('Error') || line.includes('Could not authenticate you')) {
+                //         errorMessages.push(line.trim());
+                //     }
+                // }
+
+                for await (const line of rl) {
+                    // Check for the start of an error block
+                    if (line.includes('⛔ ERRORS')) {
+                        errorBlocks.push(line.trim());
+                        isErrorBlock = true;
+                        continue;
+                    }
+
+                    // Collect lines in the current error block
+                    if (isErrorBlock) {
+                        // if (line.startsWith('  ') || line.includes('⛔')) {
+                        //     currentBlock.push(line.trim());
+                        // } else
+                        // if ((line.includes('\r\n') || (line.includes(`\n`))) && line.trim() === '') {
+                        if (line === '\r\n' || line === `\n`) {
+                            // End of current error block
+                            isErrorBlock = false;
+                        } else {
+                            errorBlocks.push(line.trim());
+                        }
+                    }
+                }
+
+                notification[key] = errorBlocks;
+            } catch (error) {
+                console.error(`Failed to read logs for ${key}:`, error.message);
+            }
+        }
+        response.json({ status: true, notification });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+    // await new Promise((resolve) => setTimeout(resolve, 30 * 60 * 1000));
+}
+
+processLogsAndReportErrors()
 
 async function StartCharacter(request, response) {
     try {
@@ -82,7 +155,7 @@ async function StartCharacter(request, response) {
         //     // console.log(`Stdout: ${stdout}`);
         // });
         //
-// Build the command
+        // Build the command
         const command = `pnpm`;
         const args = [
             'start:debug',
@@ -90,7 +163,7 @@ async function StartCharacter(request, response) {
         ];
         // console.log('Command:', command, args);
 
-// Spawn the process
+        // Spawn the process
         const process = spawn(command, args, {
             cwd: rootDir,
             shell: true, // Required for piping (`tee`)
@@ -98,13 +171,14 @@ async function StartCharacter(request, response) {
         });
         // console.log('process', process);
 
+        // Detach from this API, to not close process when this API terminated
         // const child = spawn('node', ['your_script.js'], {
         //     detached: true,
         //     stdio: 'ignore',
         // });
         //
         // child.unref();
-// Log stdout and stderr to a file
+        // Log stdout and stderr to a file
         const logStream = fs.createWriteStream(logFile, { flags: 'a' });
         process.stdout.pipe(logStream);
         process.stderr.pipe(logStream);
@@ -278,6 +352,55 @@ async function LogView(request, response) {
             const logPath = runningProcesses[character].log_file;
             if (fs.existsSync(logPath)) {
                 logData = fs.readFileSync(logPath, 'utf-8');
+            }
+        } else throw new Error(`Character not found in running processes`);
+        response.json({ status: true, log: logData, view: logData.split('\n') });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+async function LogView1(request, response) {
+    try{
+        const { query: { character } } = request;
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        const runningProcesses = ReadRunningProcesses();
+        let logData = '';
+        if (runningProcesses[character]) {
+            const logPath = runningProcesses[character].log_file;
+            if (fs.existsSync(logPath)) {
+                const logStream = fs.createReadStream(logPath, { encoding: 'utf8', highWaterMark: 1024 * 1024 }); // 1MB chunks
+                // Pipe the log stream directly to the response
+                logStream.pipe(response);
+                logStream.on('error', (error) => {
+                    throw new Error(`Error reading log file: ${error.message}`);
+                });
+
+                const fileStream = fs.createReadStream(logPath, { encoding: 'utf8' });
+                const rl = readline.createInterface({
+                    input: fileStream,
+                    crlfDelay: Infinity
+                });
+
+                // Set headers for streaming response
+                // response.setHeader('Transfer-Encoding', 'chunked');
+
+                rl.on('line', (line) => {
+                    // Send each line as a chunk to the client
+                    // response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
+                    response.write(JSON.stringify({ line }));  // Wrapping the line in a JSON object, send as a chunk
+                });
+
+                rl.on('close', () => {
+                    // End the response once the file is completely read
+                    response.end();
+                });
+
+                rl.on('error', (error) => {
+                    throw new Error(`Error reading log file: ${error.message}`);
+                });
             }
         } else throw new Error(`Character not found in running processes`);
         response.json({ status: true, log: logData, view: logData.split('\n') });
