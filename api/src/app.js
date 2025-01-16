@@ -108,7 +108,7 @@ async function processLogsAndReportErrors(request, response) {
     // await new Promise((resolve) => setTimeout(resolve, 30 * 60 * 1000));
 }
 
-processLogsAndReportErrors()
+// processLogsAndReportErrors()
 
 async function StartCharacter(request, response) {
     try {
