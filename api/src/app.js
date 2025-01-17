@@ -27,6 +27,8 @@ app.get('/character/stop',StopCharacter);
 app.get('/character/runlist', RunList);
 // View character log
 app.get('/character/log', LogViewStream);
+// View character log errors
+app.get('/character/errors', CharacterLogErrors);
 // Create character
 app.post('/character', CreateCharacter);
 // Characters list
@@ -38,75 +40,30 @@ app.put('/character', UpdateCharacter);
 // Delete character
 app.delete('/character', DeleteCharacter);
 
-// async function processLogsAndReportErrors(request, response) {
-//     try {
-//         console.log('Processing logs...');
-//         const runningProcesses = ReadRunningProcesses();
-//         let notification = {};
-//         for (const [key, process] of Object.entries(runningProcesses)) {
-//             const logFile = process.log_file;
-//
-//             try {
-//                 console.log(`Reading logs for ${key} (${logFile})...`);
-//                 const errorMessages = [];
-//                 const errorBlocks = [];
-//                 let isErrorBlock = false;
-//                 // Create a read stream
-//                 const fileStream = fs.createReadStream(logFile, { encoding: 'utf8' });
-//                 // Use readline to process the file line-by-line
-//                 const rl = readline.createInterface({
-//                     input: fileStream,
-//                     crlfDelay: Infinity // Handles different newline formats
-//                 });
-//
-//                 console.log('Processing file in chunks...');
-//
-//                 // for await (const line of rl) {
-//                 //     // Check for errors in the current line
-//                 //     if (line.includes('Error') || line.includes('Could not authenticate you')) {
-//                 //         errorMessages.push(line.trim());
-//                 //     }
-//                 // }
-//
-//                 for await (const line of rl) {
-//                     // Check for the start of an error block
-//                     if (line.includes('⛔ ERRORS')) {
-//                         errorBlocks.push(line.trim());
-//                         isErrorBlock = true;
-//                         continue;
-//                     }
-//
-//                     // Collect lines in the current error block
-//                     if (isErrorBlock) {
-//                         // if (line.startsWith('  ') || line.includes('⛔')) {
-//                         //     currentBlock.push(line.trim());
-//                         // } else
-//                         // if ((line.includes('\r\n') || (line.includes(`\n`))) && line.trim() === '') {
-//                         if (line === '\r\n' || line === `\n`) {
-//                             // End of current error block
-//                             isErrorBlock = false;
-//                         } else {
-//                             errorBlocks.push(line.trim());
-//                         }
-//                     }
-//                 }
-//
-//                 notification[key] = errorBlocks;
-//             } catch (error) {
-//                 console.error(`Failed to read logs for ${key}:`, error.message);
-//             }
-//         }
-//         response.json({ status: true, notification });
-//     } catch (error) {
-//         response.status(400).json({
-//             status: false,
-//             error: error.message,
-//         });
-//     }
-//     // await new Promise((resolve) => setTimeout(resolve, 30 * 60 * 1000));
-// }
+async function processLogsAndReportErrors(request, response) {
+    try {
+        console.log('Processing logs...');
+        const runningProcesses = ReadRunningProcesses();
+        let notification = {};
+        for (const [key, process] of Object.entries(runningProcesses)) {
+            const logFile = process.log_file;
+            try {
+                notification[key] = await LogErrors(logFile);
+            } catch (error) {
+                console.error(`Failed to read logs for ${key}:`, error.message);
+            }
+        }
+        response.json({ status: true, notification });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+    // await new Promise((resolve) => setTimeout(resolve, 30 * 60 * 1000));
+}
 
-// processLogsAndReportErrors()
+// processLogsAndReportErrors();
 
 async function StartCharacter(request, response) {
     try {
@@ -176,6 +133,21 @@ async function StartCharacter(request, response) {
         // });
         //
         // child.unref();
+
+//         // Clean up active processes when the API server is terminated
+//         function handleExit() {
+//             console.log('Cleaning up active processes...');
+//             activeProcesses.forEach((proc) => {
+//                 console.log(`Killing process with PID: ${proc.pid}`);
+//                 proc.kill('SIGTERM'); // Send a signal to terminate the process
+//             });
+//             process.exit(0);
+//         }
+//
+// // Attach signal listeners
+//         process.on('SIGINT', handleExit);
+//         process.on('SIGTERM', handleExit);
+
         // Log stdout and stderr to a file
         const logStream = fs.createWriteStream(logFile, { flags: 'a' });
         process.stdout.pipe(logStream);
@@ -394,7 +366,7 @@ async function LogViewStream(request, response) {
                 rl.on('error', (error) => {
                     throw new Error(`Error reading log file: ${error.message}`);
                 });
-            }
+            } else throw new Error(`Lof file not found: ${logPath}`);
         } else throw new Error(`Character not found in running processes`);
     } catch (error) {
         response.status(400).json({
@@ -402,6 +374,73 @@ async function LogViewStream(request, response) {
             error: error.message,
         });
     }
+}
+
+async function CharacterLogErrors(request, response) {
+    try {
+        const { query: { character, skipUnimpErrors, reverse } } = request;
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        const skipUnimportantErrors = skipUnimpErrors === 'true' || skipUnimpErrors === '1' || false;
+        const reverseErrors = !(reverse === '0' || reverse === 'false');
+        const runningProcesses = ReadRunningProcesses();
+        if (runningProcesses[character]) {
+            const logPath = runningProcesses[character].log_file;
+            if (fs.existsSync(logPath)) {
+                const errors = await LogErrors(logPath, skipUnimportantErrors);
+                if (reverseErrors) errors.reverse();
+                response.json({ status: true, errors });
+            } else throw new Error(`Lof file not found: ${logPath}`);
+        } else throw new Error(`Character not found in running processes`);
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+
+async function LogErrors(logFile, skipUnimportantErrors = false) {
+    const errorBlocks = [];
+    let errorBlock = [];
+    let isErrorBlock = false;
+    let skipErrorBlock = false;
+    const fileStream = fs.createReadStream(logFile, { encoding: 'utf8' });
+    // Use readline to process the file line-by-line
+    const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity // Handles different newline formats
+    });
+    for await (const line of rl) {
+        // 'ERRORS' block start
+        if (line.includes('ERRORS')) {
+            // If after 'ERRORS' goes next 'ERRORS'
+            if (isErrorBlock) {
+                if (!skipErrorBlock) errorBlocks.push(errorBlock);
+                errorBlock = [];
+            }
+            errorBlock.push(line.replace(/\x1b\[30m|\x1b\[31m|\x1b\[32m|\x1b\[33m|\x1b\[34m|\x1b\[35m|\x1b\[36m|\x1b\[37m|\x1b\[40m|\x1b\[43m|\x1b\[44m|\x1b\[45m|\x1b\[46m|\x1b\[47m|\x1b\[0m/g, "").trim());
+            isErrorBlock = true;
+            skipErrorBlock = false;
+            continue;
+        }
+        // Collect lines in the current 'ERRORS' block
+        if (isErrorBlock) {
+            const logEvents = ['LOGS', 'WARNINGS', 'INFORMATIONS', 'SUCCESS', 'DEBUG', 'ASSERT'];
+            if (line === '' || logEvents.some(logEvent => line.includes(logEvent))) {
+                // End of current 'ERRORS' block
+                if (!skipErrorBlock) errorBlocks.push(errorBlock);
+                errorBlock = [];
+                isErrorBlock = false;
+            } else {
+                if (skipUnimportantErrors) {
+                    const skipErrors = ['OpenAI API error:', 'OpenAI request failed', 'Error in recognizeWithOpenAI:', 'Error in handleTextOnlyReply:', 'Error in quote tweet generation:'];
+                    if (skipErrors.some(skipError => line.includes(skipError))) skipErrorBlock = true;
+                }
+                errorBlock.push(line.replace(/\x1b\[30m|\x1b\[31m|\x1b\[32m|\x1b\[33m|\x1b\[34m|\x1b\[35m|\x1b\[36m|\x1b\[37m|\x1b\[40m|\x1b\[43m|\x1b\[44m|\x1b\[45m|\x1b\[46m|\x1b\[47m|\x1b\[0m/g, "").trim());
+            }
+        }
+    }
+    return errorBlocks;
 }
 
 // Read running processes from file
