@@ -67,11 +67,12 @@ async function processLogsAndReportErrors(request, response) {
 
 async function StartCharacter(request, response) {
     try {
-        const { query: { character, restart } } = request;
+        const { query: { character, restart, debug } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         const characterPath = `characters/${character}.character.json`;
 
         const isRestart = restart === 'true' || restart === '1' || false;
+        const isDebug = debug === 'true' || debug === '1' || false;
 
         let existCharacters = GetCharacterList();
         existCharacters = existCharacters.map((item) => item.character);
@@ -113,7 +114,7 @@ async function StartCharacter(request, response) {
         // Build the command
         const command = `pnpm`;
         const args = [
-            'start:debug',
+            `start${isDebug ? ':debug' : ''}`,
             `--characters=${characterPath}`,
         ];
         // console.log('Command:', command, args);
