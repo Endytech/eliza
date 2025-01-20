@@ -988,20 +988,22 @@ export class TwitterPostClient {
                                     `@${t.username} (${new Date(t.timestamp * 1000).toLocaleString()}): ${t.text}`
                             )
                             .join("\n\n");
-
+                        const makeImageDescriptions = parseBooleanFromText(this.runtime.getSetting("MAKE_IMAGE_DESCRIPTIONS")) || false;
                         // Generate image descriptions if present
                         const imageDescriptions = [];
-                        if (tweet.photos?.length > 0) {
-                            elizaLogger.log(
-                                "Processing images in tweet for context"
-                            );
-                            for (const photo of tweet.photos) {
-                                const description = await this.runtime
-                                    .getService<IImageDescriptionService>(
-                                        ServiceType.IMAGE_DESCRIPTION
-                                    )
-                                    .describeImage(photo.url);
-                                imageDescriptions.push(description);
+                        if (makeImageDescriptions) {
+                            if (tweet.photos?.length > 0) {
+                                elizaLogger.log(
+                                    "Processing images in tweet for context"
+                                );
+                                for (const photo of tweet.photos) {
+                                    const description = await this.runtime
+                                        .getService<IImageDescriptionService>(
+                                            ServiceType.IMAGE_DESCRIPTION
+                                        )
+                                        .describeImage(photo.url);
+                                    imageDescriptions.push(description);
+                                }
                             }
                         }
 
@@ -1197,17 +1199,20 @@ export class TwitterPostClient {
                 )
                 .join("\n\n");
 
+            const makeImageDescriptions = parseBooleanFromText(this.runtime.getSetting("MAKE_IMAGE_DESCRIPTIONS")) || false;
             // Generate image descriptions if present
             const imageDescriptions = [];
-            if (tweet.photos?.length > 0) {
-                elizaLogger.log("Processing images in tweet for context");
-                for (const photo of tweet.photos) {
-                    const description = await this.runtime
-                        .getService<IImageDescriptionService>(
-                            ServiceType.IMAGE_DESCRIPTION
-                        )
-                        .describeImage(photo.url);
-                    imageDescriptions.push(description);
+            if (makeImageDescriptions) {
+                if (tweet.photos?.length > 0) {
+                    elizaLogger.log("Processing images in tweet for context");
+                    for (const photo of tweet.photos) {
+                        const description = await this.runtime
+                            .getService<IImageDescriptionService>(
+                                ServiceType.IMAGE_DESCRIPTION
+                            )
+                            .describeImage(photo.url);
+                        imageDescriptions.push(description);
+                    }
                 }
             }
 

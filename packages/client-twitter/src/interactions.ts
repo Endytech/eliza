@@ -15,7 +15,8 @@ import {
     elizaLogger,
     getEmbeddingZeroVector,
     IImageDescriptionService,
-    ServiceType
+    ServiceType,
+    parseBooleanFromText
 } from "@elizaos/core";
 import { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
@@ -348,25 +349,25 @@ export class TwitterInteractionClient {
 
         elizaLogger.debug("formattedConversation: ", formattedConversation);
 
+        const makeImageDescriptions = parseBooleanFromText(this.runtime.getSetting("MAKE_IMAGE_DESCRIPTIONS")) || false;
         const imageDescriptionsArray = [];
-        try{
-            elizaLogger.debug('Getting images');
-            for (const photo of tweet.photos) {
-                elizaLogger.debug(photo.url);
-                const description = await this.runtime
-                    .getService<IImageDescriptionService>(
-                        ServiceType.IMAGE_DESCRIPTION
-                    )
-                    .describeImage(photo.url);
-                imageDescriptionsArray.push(description);
+        if (makeImageDescriptions) {
+            try {
+                elizaLogger.debug('Getting images');
+                for (const photo of tweet.photos) {
+                    elizaLogger.debug(photo.url);
+                    const description = await this.runtime
+                        .getService<IImageDescriptionService>(
+                            ServiceType.IMAGE_DESCRIPTION
+                        )
+                        .describeImage(photo.url);
+                    imageDescriptionsArray.push(description);
+                }
+            } catch (error) {
+                // Handle the error
+                elizaLogger.error("Error Occured during describing image: ", error);
             }
-        } catch (error) {
-    // Handle the error
-    elizaLogger.error("Error Occured during describing image: ", error);
-}
-
-
-
+        }
 
         let state = await this.runtime.composeState(message, {
             twitterClient: this.client.twitterClient,

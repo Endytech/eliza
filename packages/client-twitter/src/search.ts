@@ -10,6 +10,7 @@ import {
     ModelClass,
     ServiceType,
     State,
+    parseBooleanFromText
 } from "@elizaos/core";
 import { stringToUuid } from "@elizaos/core";
 import { ClientBase } from "./base";
@@ -225,15 +226,18 @@ export class TwitterSearchClient {
                 tweetBackground = `Retweeting @${originalTweet.username}: ${originalTweet.text}`;
             }
 
+            const makeImageDescriptions = parseBooleanFromText(this.runtime.getSetting("MAKE_IMAGE_DESCRIPTIONS")) || false;
             // Generate image descriptions using GPT-4 vision API
             const imageDescriptions = [];
-            for (const photo of selectedTweet.photos) {
-                const description = await this.runtime
-                    .getService<IImageDescriptionService>(
-                        ServiceType.IMAGE_DESCRIPTION
-                    )
-                    .describeImage(photo.url);
-                imageDescriptions.push(description);
+            if (makeImageDescriptions) {
+                for (const photo of selectedTweet.photos) {
+                    const description = await this.runtime
+                        .getService<IImageDescriptionService>(
+                            ServiceType.IMAGE_DESCRIPTION
+                        )
+                        .describeImage(photo.url);
+                    imageDescriptions.push(description);
+                }
             }
 
             let state = await this.runtime.composeState(message, {
