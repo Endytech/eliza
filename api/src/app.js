@@ -123,17 +123,26 @@ async function StartCharacter(request, response) {
         const process = spawn(command, args, {
             cwd: rootDir,
             shell: true, // Required for piping (`tee`)
-            stdio: ['inherit', 'pipe', 'pipe'], // Pipe output for logs
+            // detached: true,
+            stdio: ['ignore', 'pipe', 'pipe'], // Pipe output for logs
         });
+        // const process = spawn(command, args, {
+        //     cwd: rootDir,
+        //     // shell: true,
+        //     detached: true,
+        //     stdio: ['ignore', 'ignore', 'ignore'],
+        // });
+
+        // process.unref();
         // console.log('process', process);
 
         // Detach from this API, to not close process when this API terminated
-        // const child = spawn('node', ['your_script.js'], {
+        // const process = spawn(command, args, {
+        //     cwd: rootDir,
+        //     shell: true, // Required for piping (`tee`)
         //     detached: true,
-        //     stdio: 'ignore',
+        //     stdio: ['inherit', 'pipe', 'pipe'], // Pipe output for logs
         // });
-        //
-        // child.unref();
 
 //         // Clean up active processes when the API server is terminated
 //         function handleExit() {
