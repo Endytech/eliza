@@ -23,7 +23,7 @@ app.use(bodyParser.urlencoded({ extended: false }));
 // Start character
 app.get('/character/start', StartCharacter);
 // Stop character
-app.get('/character/stop',StopCharacter);
+app.get('/character/stop', StopCharacter);
 // Run character list
 app.get('/character/runlist', RunList);
 // View character log
@@ -32,19 +32,19 @@ app.get('/character/log', LogViewStream);
 app.get('/character/errors', CharacterLogErrors);
 // Create character
 app.post('/character', CreateCharacter);
-// Characters list
-app.get('/characters', CharacterList);
-// Get Character
-app.get('/character', CharacterView);
 // Update character
 app.put('/character', UpdateCharacter);
 // Delete character
 app.delete('/character', DeleteCharacter);
+// Characters list
+app.get('/characters', CharacterList);
+// Get Character
+app.get('/character', CharacterView);
 
 async function processLogsAndReportErrors(request, response) {
     try {
         console.log('Processing logs...');
-        const runningProcesses = ReadRunningProcesses();
+        const runningProcesses = ReadRunningProcessesFile();
         let notification = {};
         for (const [key, process] of Object.entries(runningProcesses)) {
             const logFile = process.log_file;
@@ -75,11 +75,10 @@ async function processLogsAndReportErrors(request, response) {
 //         const isRestart = restart === 'true' || restart === '1' || false;
 //         const isDebug = debug === 'true' || debug === '1' || false;
 //
-//         let existCharacters = GetCharacterList();
-//         existCharacters = existCharacters.map((item) => item.character);
+//         const existCharacters = await GetCharacterList();
 //         if (!existCharacters.includes(character)) throw new Error(`Character ${character} does not exists`);
 //
-//         const runningProcesses = ReadRunningProcesses();
+//         const runningProcesses = ReadRunningProcessesFile();
 //         // Check if process for this character is already running
 //         if (runningProcesses[character]) {
 //             if (isRestart) {
@@ -87,7 +86,7 @@ async function processLogsAndReportErrors(request, response) {
 //                     if (err) console.error('Failed to kill process:', err);
 //                 });
 //                 delete runningProcesses[character];
-//                 WriteRunningProcesses(runningProcesses);
+//                 WriteRunningProcessesFile(runningProcesses);
 //                 await new Promise((resolve) => setTimeout(resolve, 5000));
 //             } else {
 //                 return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
@@ -176,7 +175,7 @@ async function processLogsAndReportErrors(request, response) {
 //
 //         // Save the process PID to the file
 //         runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPathFull };
-//         WriteRunningProcesses(runningProcesses);
+//         WriteRunningProcessesFile(runningProcesses);
 //         console.log(`Started eliza process with PID: ${process.pid} for ${characterPathFull}`);
 //         response.json({ status: true, pid: process.pid, log_file: logFile, character, character_path: characterPathFull });
 //     } catch (error) {
@@ -199,27 +198,24 @@ async function StartCharacter(request, response) {
         const rootDir = path.resolve('../');
         const logsDir = path.join(rootDir, 'logs');
         const logFile = path.join(logsDir, `logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`);
-        const characterPathFull = path.join(rootDir, characterPath);
         // Ensure the logs directory exists
         if (!fs.existsSync(logsDir)) {
             fs.mkdirSync(logsDir);
         }
         // Check if character file does not exists
-        let existCharacters = GetCharacterList();
-        existCharacters = existCharacters.map((item) => item.character);
+        const existCharacters = await GetCharacterList();
         if (!existCharacters.includes(character)) throw new Error(`Character ${character} does not exists`);
-        // Connect to pm2
-        await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err}`)) : resolve())));
         // Check if process for this character is already running
-        const runningProcesses = ReadRunningProcesses();
-        // console.log('runningProcesses[character]', runningProcesses[character]);
-        if (runningProcesses[character]) {
+        const runningProcesses = await ReadRunningProcessesPm2();
+        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
+        // Connect to pm2
+        await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err.message}`)) : resolve())));
+        if (runningCharacter) {
             if (isRestart) {
                 // Delete the existing process
-                await new Promise((resolve, reject) => pm2.delete(runningProcesses[character].name,(err)=>
-                    (err ? reject(new Error(`Error deleting Eliza process PM2 with name: "${runningProcesses[character].name}": ${err}`)) : resolve())));
-                delete runningProcesses[character];
-                WriteRunningProcesses(runningProcesses);
+                await new Promise((resolve, reject) => pm2.delete(runningCharacter.name,(err)=>
+                    (err ? reject(new Error(`Error deleting Eliza process PM2 with name: "${runningCharacter.name}": ${err.message}`)) : resolve())));
+                // WriteRunningProcessesFile(runningProcesses);
             } else {
                 return response.status(400).json({ error: `Eliza is already running for character: ${character}` });
             }
@@ -232,33 +228,33 @@ async function StartCharacter(request, response) {
             // log_file: logFile, // Direct output to a log file
             output: logFile, // Redirect stdout to log file
             error: logFile, // Redirect stderr to log file
-        },(err, apps) => (err ? reject(new Error(`Error starting Eliza process PM2 with name: "${character}": ${err}`)) : resolve(apps))));
+        },(err, apps) => (err ? reject(new Error(`Error starting Eliza process PM2 with name: "${character}": ${err.message}`)) : resolve(apps))));
         // console.log(`apps`, JSON.stringify(apps, null, 4));
         if (!apps || apps.length === 0) {
             pm2.disconnect();
             throw new Error(`Error on start Eliza process PM2 with name: ${character}`);
         }
-        runningProcesses[character] = { pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, name: character, log_file: logFile, character_path: characterPathFull };
-        WriteRunningProcesses(runningProcesses);
-        console.log(`Started Eliza process PM2 with name: ${character} and id: ${apps[0].pm2_env.pm_id}`);
+        // runningProcesses[character] = { pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, name: character, log_file: logFile, character_path: characterPathFull };
+        // WriteRunningProcessesFile(runningProcesses);
+        console.log(`${new Date().toISOString()}. Character started. Name: ${character}. Id: ${apps[0].pm2_env.pm_id}`);
         pm2.disconnect(); // Disconnect from PM2 when done
-        response.json({ status: true, pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, character, log_file: logFile, character_path: characterPathFull });
+        response.json({ status: true, pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, character, log_file: logFile, character_path: characterPath });
         // pm2.connect(function (err) {
         //     if (err) {
-        //         throw new Error(`Error connecting to PM2: ${err}`);
+        //         throw new Error(`Error connecting to PM2: ${err.message}`);
         //         // process.exit(2);
         //     }
         //     // Check if process for this character is already running
-        //     const runningProcesses = ReadRunningProcesses();
+        //     const runningProcesses = ReadRunningProcessesFile();
         //     // console.log('runningProcesses[character]', runningProcesses[character]);
         //     if (runningProcesses[character]) {
         //         if (isRestart) {
         //             pm2.delete(runningProcesses[character].name, (err) => {
         //                 if (err) {
-        //                     throw new Error(`Error deleting Eliza process PM2 with name: "${runningProcesses[character].name}": ${err}`);
+        //                     throw new Error(`Error deleting Eliza process PM2 with name: "${runningProcesses[character].name}": ${err.message}`);
         //                 } else {
         //                     delete runningProcesses[character];
-        //                     WriteRunningProcesses(runningProcesses);
+        //                     WriteRunningProcessesFile(runningProcesses);
         //                     pm2.start({
         //                         name: character, // PM2 process name
         //                         script: 'pnpm',
@@ -270,7 +266,7 @@ async function StartCharacter(request, response) {
         //                     }, function (err, apps) {
         //                         if (err) {
         //                             pm2.disconnect();
-        //                             throw new Error(`Error starting Eliza process PM2 with name: "${character}": ${err}`);
+        //                             throw new Error(`Error starting Eliza process PM2 with name: "${character}": ${err.message}`);
         //                             // process.exit(1);
         //                         }
         //                         if (!apps || apps.length === 0) {
@@ -279,7 +275,7 @@ async function StartCharacter(request, response) {
         //                         }
         //                         // console.log(`apps`, JSON.stringify(apps, null, 4));
         //                         runningProcesses[character] = { pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, name: character, log_file: logFile, character_path: characterPathFull };
-        //                         WriteRunningProcesses(runningProcesses);
+        //                         WriteRunningProcessesFile(runningProcesses);
         //                         console.log(`Started Eliza process PM2 with name: ${character} and id: ${apps[0].pm2_env.pm_id}`);
         //                         pm2.disconnect(); // Disconnect from PM2 when done
         //                         response.json({ status: true, pid: apps[0].pid, pm_id: apps[0].pm_id, character, log_file: logFile, character_path: characterPathFull });
@@ -302,12 +298,12 @@ async function StartCharacter(request, response) {
         //         }, function (err, apps) {
         //             if (err) {
         //                 pm2.disconnect();
-        //                 throw new Error(`Error starting Eliza process PM2 with name: "${character}": ${err}`);
+        //                 throw new Error(`Error starting Eliza process PM2 with name: "${character}": ${err.message}`);
         //                 // process.exit(1);
         //             }
         //             // console.log(`apps`, JSON.stringify(apps, null, 4));
         //             runningProcesses[character] = { pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, name: character, log_file: logFile, character_path: characterPathFull };
-        //             WriteRunningProcesses(runningProcesses);
+        //             WriteRunningProcessesFile(runningProcesses);
         //             console.log(`Started Eliza process PM2 with name: ${character} and id: ${apps[0].pm2_env.pm_id}`);
         //             pm2.disconnect(); // Disconnect from PM2 when done
         //             response.json({ status: true, pid: apps[0].pid, pm_id: apps[0].pm_id, character, log_file: logFile, character_path: characterPathFull });
@@ -342,7 +338,7 @@ async function StartCharacter(request, response) {
 //         const rootDir = path.resolve('../');
 //         const characterPathFull = path.join(rootDir, `characters/${character}.character.json`);
 //
-//         const runningProcesses = ReadRunningProcesses();
+//         const runningProcesses = ReadRunningProcessesFile();
 //         const processInfo = runningProcesses[character];
 //
 //         if (!processInfo) {
@@ -354,7 +350,7 @@ async function StartCharacter(request, response) {
 //         });
 //         console.log(`Eliza stopped with PID: ${process.pid} for ${characterPathFull}`);
 //         delete runningProcesses[character];
-//         WriteRunningProcesses(runningProcesses);
+//         WriteRunningProcessesFile(runningProcesses);
 //         await new Promise((resolve) => setTimeout(resolve, 2000));
 //         response.json({ status: true });
 //     } catch (error) {
@@ -369,14 +365,15 @@ async function StopCharacter(request, response) {
     try {
         const { query: { character } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-        const runningProcesses = ReadRunningProcesses();
-        if (!runningProcesses[character]) throw new Error(`No running process found for character: ${character}`);
-        await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err}`)) : resolve())));
-        await new Promise((resolve, reject) => pm2.delete(runningProcesses[character].name,(err)=>
-            (err ? reject(new Error(`Error stop Eliza process PM2 with name: "${runningProcesses[character].name}": ${err}`)) : resolve())));
-        console.log(`Stopped Eliza process PM2 with name: ${runningProcesses[character].name} and id: ${runningProcesses[character].pm_id}.`);
-        delete runningProcesses[character];
-        WriteRunningProcesses(runningProcesses);
+
+        const runningProcesses = await ReadRunningProcessesPm2();
+        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
+        if (!runningCharacter) throw new Error(`No running process found for character: ${character}`);
+        await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err.message}`)) : resolve())));
+        await new Promise((resolve, reject) => pm2.delete(runningCharacter.name,(err)=>
+            (err ? reject(new Error(`Error stop Eliza process PM2 with name: "${runningCharacter.name}": ${err.message}`)) : resolve())));
+        console.log(`${new Date().toISOString()}. Character stopped. Name: ${runningCharacter.name}. Id: ${runningCharacter.pm_id}.`);
+        // WriteRunningProcessesFile(runningProcesses);
         pm2.disconnect();
         response.json({ status: true });
     } catch (error) {
@@ -388,7 +385,19 @@ async function StopCharacter(request, response) {
 }
 
 async function RunList(request, response) {
-    const runningProcesses = ReadRunningProcesses();
+    try {
+        const list = await ReadRunningProcessesPm2();
+        response.json({ status: true,  characters: list });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+
+async function RunListFile(request, response) {
+    const runningProcesses = ReadRunningProcessesFile();
     response.json({ characters: runningProcesses });
 }
 
@@ -397,15 +406,15 @@ async function CreateCharacter(request, response, update = false) {
         const {  query: { character }, body: { data } } = request;
         if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-        let existCharacters = GetCharacterList();
-        existCharacters = existCharacters.map((item) => item.character);
+        const existCharacters = await GetCharacterList();
         if (existCharacters.includes(character)) throw new Error(`Character ${character} already exists`);
         const rootDir = path.resolve('../');
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
         await fs.writeFile(characterPath, JSON.stringify(data, null, 2),(err) => {
             if (err) throw err;
         });
-        response.json({ status: true, character, character_path: characterPath });
+        console.log(`${new Date().toISOString()}. Character created. Name: ${character}.`);
+        response.json({ status: true });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -424,7 +433,8 @@ async function UpdateCharacter(request, response) {
         await fs.writeFile(characterPath, JSON.stringify(data, null, 2),(err) => {
             if (err) throw err;
         });
-        response.json({ status: true, character, character_path: characterPath });
+        console.log(`${new Date().toISOString()}. Character Updated. Name: ${character}.`);
+        response.json({ status: true });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -444,16 +454,17 @@ async function DeleteCharacter(request, response) {
             throw new Error(`Character file not found: ${characterPath}`);
         }
         await fs.unlinkSync(characterPath);
-        const runningProcesses = ReadRunningProcesses();
-        if (runningProcesses[character]) {
-            await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err}`)) : resolve())));
-            await new Promise((resolve, reject) => pm2.delete(runningProcesses[character].name,(err)=>
-                (err ? reject(new Error(`Error stop Eliza process PM2 with name: "${runningProcesses[character].name}": ${err}`)) : resolve())));
-            console.log(`Stopped Eliza process PM2 with name: ${runningProcesses[character].name} and id: ${runningProcesses[character].pm_id}.`);
-            delete runningProcesses[character];
-            WriteRunningProcesses(runningProcesses);
+        const runningProcesses = await ReadRunningProcessesPm2();
+        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
+        if (runningCharacter) {
+            await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err.message}`)) : resolve())));
+            await new Promise((resolve, reject) => pm2.delete(runningCharacter.name,(err)=>
+                (err ? reject(new Error(`Error stop Eliza process PM2 with name: "${runningCharacter.name}": ${err.message}`)) : resolve())));
+            console.log(`${new Date().toISOString()}. Character stopped. name: ${runningCharacter.name}. Id: ${runningCharacter.pm_id}.`);
+            // WriteRunningProcessesFile(runningProcesses);
             await new Promise((resolve) => setTimeout(resolve, 2000));
         }
+        console.log(`${new Date().toISOString()}. Character deleted. Name: ${character}.`);
         response.json({ status: true });
     } catch (error) {
         response.status(400).json({
@@ -464,8 +475,16 @@ async function DeleteCharacter(request, response) {
 }
 
 async function CharacterList(request, response) {
-    try{
-        const characters = GetCharacterList();
+    try {
+        let characters = await GetCharacterList();
+        const runningCharacters = await ReadRunningProcessesPm2();
+        characters = characters.map((character) => {
+            const runningCharacter = runningCharacters.find((runCharacter) => (runCharacter.name === character));
+            return {
+                character: character,
+                ...(runningCharacter && { process: runningCharacter })
+            }
+        })
         response.json({ status: true, characters });
     } catch (error) {
         response.status(400).json({
@@ -498,10 +517,11 @@ async function LogView(request, response) {
     try{
         const { query: { character } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-        const runningProcesses = ReadRunningProcesses();
         let logData = '';
-        if (runningProcesses[character]) {
-            const logPath = runningProcesses[character].log_file;
+        const runningProcesses = await ReadRunningProcessesPm2();
+        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
+        if (runningCharacter) {
+            const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
                 logData = fs.readFileSync(logPath, 'utf-8');
             }
@@ -518,10 +538,10 @@ async function LogViewStream(request, response) {
     try{
         const { query: { character } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-        const runningProcesses = ReadRunningProcesses();
-        let logData = '';
-        if (runningProcesses[character]) {
-            const logPath = runningProcesses[character].log_file;
+        const runningProcesses = await ReadRunningProcessesPm2();
+        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
+        if (runningCharacter) {
+            const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
                 const fileStream = fs.createReadStream(logPath, { encoding: 'utf8' });
                 const rl = readline.createInterface({
@@ -564,9 +584,10 @@ async function CharacterLogErrors(request, response) {
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
         const skipUnimportantErrors = skipUnimpErrors === 'true' || skipUnimpErrors === '1' || false;
         const reverseErrors = !(reverse === '0' || reverse === 'false');
-        const runningProcesses = ReadRunningProcesses();
-        if (runningProcesses[character]) {
-            const logPath = runningProcesses[character].log_file;
+        const runningProcesses = await ReadRunningProcessesPm2();
+        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
+        if (runningCharacter) {
+            const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
                 const errors = await LogErrors(logPath, skipUnimportantErrors);
                 if (reverseErrors) errors.reverse();
@@ -625,8 +646,19 @@ async function LogErrors(logFile, skipUnimportantErrors = false) {
     return errorBlocks;
 }
 
+// Read running processes from pm2
+async function ReadRunningProcessesPm2() {
+    const excludedNames = ['eliza_character_api'];
+    await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err}`)) : resolve())));
+    let list = await new Promise((resolve, reject) => pm2.list((err, processList)=> (err ? reject(new Error(`Error retrieving Eliza process list: ${err.message}`)) : resolve(processList))));
+    pm2.disconnect();
+    list = list.map((item) => ({ pid: item.pid, pm_id: item.pm2_env.pm_id, name: item.name, log_file: item.pm2_env.pm_out_log_path, character_path:`characters/${item.name}.character.json` }));
+    list = list.filter((item) => !excludedNames.includes(item.name));
+    return list;
+}
+
 // Read running processes from file
-function ReadRunningProcesses() {
+function ReadRunningProcessesFile() {
     const { processFile } = common_config;
     if (!processFile) throw new Error("processFile required at config");
     if (fs.existsSync(processFile)) {
@@ -636,21 +668,17 @@ function ReadRunningProcesses() {
 }
 
 // Write running processes to file
-function WriteRunningProcesses(processes) {
+function WriteRunningProcessesFile(processes) {
     const { processFile } = common_config;
     if (!processFile) throw new Error("processFile required at config");
     fs.writeFileSync(processFile, JSON.stringify(processes, null, 2));
 }
 
-function GetCharacterList() {
+async function GetCharacterList() {
     const rootDir = path.resolve('../');
     const charactersPath = path.join(rootDir, `characters/`);
-    const files = fs.readdirSync(charactersPath);
-    return files.filter((file) => file.endsWith('.character.json')).map((file) => {
-        return {
-            character: file.split('.character')[0], // Extract the part before `.character`
-            character_path: path.join(charactersPath, file)
-    }})
+    const files = await new Promise((resolve, reject) => fs.readdir(charactersPath, (err, files) => (err ? reject(new Error(`Error reading characters directory: ${err.message}`)) : resolve(files))));
+    return files.filter((file) => file.endsWith('.character.json')).map((file) => (file.split('.character')[0])); // Extract the part before `.character`
 }
 
 // Start the server
