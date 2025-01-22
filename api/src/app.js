@@ -74,7 +74,7 @@ async function CharacterNotifyErrors(request, response) {
                     character: runningCharacter.name,
                     errors: characterErrors
                 })
-                if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) await sendToBotNotifier(`Character: ${runningCharacter.name}\n\nErrors: ${characterErrors.join('\n')}`);
+                if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) await sendToBotNotifier(`Character: ${runningCharacter.name}\n\n${characterErrors.join('\n')}`);
             } else throw new Error(`Lof file not found: ${logPath}`);
         }
         if (response){
