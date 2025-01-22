@@ -1,13 +1,11 @@
 import express from 'express';
-// import { exec } from 'child_process';
 import fs from 'fs';
 import * as path from 'path';
 import bodyParser from 'body-parser';
-// import { spawn } from 'child_process';
 import common_config from './_config';
-// import treeKill from 'tree-kill';
 import readline from 'readline';
 import pm2 from 'pm2';
+import got from 'got';
 
 const app = express();
 const { port } = common_config;
@@ -30,6 +28,8 @@ app.get('/character/runlist', RunList);
 app.get('/character/log', LogViewStream);
 // View character log errors
 app.get('/character/errors', CharacterLogErrors);
+
+app.get('/character/errors1', CharacterNotifyErrors);
 // Create character
 app.post('/character', CreateCharacter);
 // Update character
@@ -41,150 +41,67 @@ app.get('/characters', CharacterList);
 // Get Character
 app.get('/character', CharacterView);
 
-async function processLogsAndReportErrors(request, response) {
+
+async function CharacterNotifyErrors(request, response) {
     try {
-        console.log('Processing logs...');
-        const runningProcesses = ReadRunningProcessesFile();
-        let notification = {};
-        for (const [key, process] of Object.entries(runningProcesses)) {
-            const logFile = process.log_file;
-            try {
-                notification[key] = await LogErrors(logFile);
-            } catch (error) {
-                console.error(`Failed to read logs for ${key}:`, error.message);
-            }
+        const { query: { character, needNotifyErrorsByBotNotifier } } = request;
+        const { notifyPeriod } = common_config;
+        // In minutes
+        const time = parseInt(notifyPeriod) || 60;
+        let runningProcesses = await ReadRunningProcessesPm2();
+        if (character) runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
+        const errors = [];
+        for (const runningCharacter of runningProcesses) {
+            const logPath = runningCharacter.log_file;
+            if (fs.existsSync(logPath)) {
+                let characterErrors = await LogErrors(logPath);
+                characterErrors.reverse();
+                characterErrors = characterErrors.filter((error) => {
+                    let date = null;
+                    if (typeof error === 'string') {
+                        // Extract timestamp for string errors
+                        const match = error.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
+                        date = match ? new Date(match[0]) : null;
+                    } else if (Array.isArray(error)) {
+                        // Extract timestamp for array errors
+                        const match = error.find(item => /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(item));
+                        date = match ? new Date(match.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)[0]) : null;
+                    }
+                    // Check if date is valid and within the last 60 minutes
+                    return date && (Date.now() - date.getTime() <= time * 60 * 1000);
+                });
+                errors.push({
+                    character: runningCharacter.name,
+                    errors: characterErrors
+                })
+                if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) await sendToBotNotifier(`Character: ${runningCharacter.name}\n\nErrors: ${characterErrors.join('\n')}`);
+            } else throw new Error(`Lof file not found: ${logPath}`);
         }
-        response.json({ status: true, notification });
+        if (response){
+            if (character) response.json({ status: true, errors: errors[0].errors });
+            response.json({ status: true, characters: errors });
+        }
     } catch (error) {
-        response.status(400).json({
-            status: false,
-            error: error.message,
-        });
+        throw new Error(`Error get log in notify loop: ${error.message}`);
     }
-    // await new Promise((resolve) => setTimeout(resolve, 30 * 60 * 1000));
 }
 
-// processLogsAndReportErrors();
-
-// async function StartCharacter(request, response) {
-//     try {
-//         const { query: { character, restart, debug } } = request;
-//         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-//         const characterPath = `characters/${character}.character.json`;
-//
-//         const isRestart = restart === 'true' || restart === '1' || false;
-//         const isDebug = debug === 'true' || debug === '1' || false;
-//
-//         const existCharacters = await GetCharacterList();
-//         if (!existCharacters.includes(character)) throw new Error(`Character ${character} does not exists`);
-//
-//         const runningProcesses = ReadRunningProcessesFile();
-//         // Check if process for this character is already running
-//         if (runningProcesses[character]) {
-//             if (isRestart) {
-//                 treeKill(runningProcesses[character].pid, 'SIGTERM', (err) => {
-//                     if (err) console.error('Failed to kill process:', err);
-//                 });
-//                 delete runningProcesses[character];
-//                 WriteRunningProcessesFile(runningProcesses);
-//                 await new Promise((resolve) => setTimeout(resolve, 5000));
-//             } else {
-//                 return response.status(400).json({ error: `Eliza is already running for ${characterPath}` });
-//             }
-//         }
-//         // Resolve the root directory and logs directory
-//         const rootDir = path.resolve('../');
-//         const logsDir = path.join(rootDir, 'logs');
-//         const logFile = path.join(logsDir, `logs_${character}_${new Date().toISOString().replace(/[:.]/g, '-').replace('T', '_')}.txt`);
-//         // Ensure the logs directory exists
-//         if (!fs.existsSync(logsDir)) {
-//             throw new Error('Does not exist log directory', logsDir);
-//         }
-//         // const command = `pnpm start:debug --characters="${characterPath}" 2>&1 | tee ${logFile}`;
-//         // const process = exec(command, { cwd: rootDir }, (error, stdout, stderr) => {
-//         //     if (error) {
-//         //         console.error(`Error run process: ${error.message}`);
-//         //     }
-//         //     if (stderr) {
-//         //         console.error(`Stderr when run process: ${stderr}`)
-//         //     }
-//         //     // console.log(`Stdout: ${stdout}`);
-//         // });
-//         //
-//         // Build the command
-//         const command = `pnpm`;
-//         const args = [
-//             `start${isDebug ? ':debug' : ''}`,
-//             `--characters=${characterPath}`,
-//         ];
-//         // console.log('Command:', command, args);
-//
-//         // Spawn the process
-//         const process = spawn(command, args, {
-//             cwd: rootDir,
-//             shell: true, // Required for piping (`tee`)
-//             // detached: true,
-//             stdio: ['ignore', 'pipe', 'pipe'], // Pipe output for logs
-//         });
-//         // const process = spawn(command, args, {
-//         //     cwd: rootDir,
-//         //     // shell: true,
-//         //     detached: true,
-//         //     stdio: ['ignore', 'ignore', 'ignore'],
-//         // });
-//
-//         // process.unref();
-//         // console.log('process', process);
-//
-//         // Detach from this API, to not close process when this API terminated
-//         // const process = spawn(command, args, {
-//         //     cwd: rootDir,
-//         //     shell: true, // Required for piping (`tee`)
-//         //     detached: true,
-//         //     stdio: ['inherit', 'pipe', 'pipe'], // Pipe output for logs
-//         // });
-//
-// //         // Clean up active processes when the API server is terminated
-// //         function handleExit() {
-// //             console.log('Cleaning up active processes...');
-// //             activeProcesses.forEach((proc) => {
-// //                 console.log(`Killing process with PID: ${proc.pid}`);
-// //                 proc.kill('SIGTERM'); // Send a signal to terminate the process
-// //             });
-// //             process.exit(0);
-// //         }
-// //
-// // // Attach signal listeners
-// //         process.on('SIGINT', handleExit);
-// //         process.on('SIGTERM', handleExit);
-//
-//         // Log stdout and stderr to a file
-//         const logStream = fs.createWriteStream(logFile, { flags: 'a' });
-//         process.stdout.pipe(logStream);
-//         process.stderr.pipe(logStream);
-//
-//         const characterPathFull = path.join(rootDir, characterPath);
-//
-//         process.on('close', (code) => {
-//             if (code === 0) {
-//                 console.log(`Process for ${characterPathFull} completed successfully.`);
-//             } else {
-//                 console.error(`Process for ${characterPathFull} exited with error code ${code}.`);
-//             }
-//         });
-//
-//         // Save the process PID to the file
-//         runningProcesses[character] = { pid: process.pid, log_file: logFile, character, character_path: characterPathFull };
-//         WriteRunningProcessesFile(runningProcesses);
-//         console.log(`Started eliza process with PID: ${process.pid} for ${characterPathFull}`);
-//         response.json({ status: true, pid: process.pid, log_file: logFile, character, character_path: characterPathFull });
-//     } catch (error) {
-//         response.status(400).json({
-//             status: false,
-//             error: error.message,
-//         });
-//     }
-// }
+async function autoCharacterNotifyErrors(request, response) {
+    let { notifyPeriod, needNotifyErrorsByBotNotifier } = common_config;
+    notifyPeriod = notifyPeriod || 60;
+    if (needNotifyErrorsByBotNotifier) {
+        while (true) {
+            try {
+                await CharacterNotifyErrors({ query: { needNotifyErrorsByBotNotifier } });
+            } catch (error) {
+                console.error(`${new Date().toISOString()}. Error during notification: ${error}`);
+            }
+            // Wait for the notify period before the next iteration
+            await new Promise((resolve) => setTimeout(resolve, notifyPeriod * 60 * 1000));
+        }
+    }
+}
+autoCharacterNotifyErrors();
 
 async function StartCharacter(request, response) {
     try {
@@ -239,90 +156,6 @@ async function StartCharacter(request, response) {
         console.log(`${new Date().toISOString()}. Character started. Name: ${character}. Id: ${apps[0].pm2_env.pm_id}`);
         pm2.disconnect(); // Disconnect from PM2 when done
         response.json({ status: true, pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, character, log_file: logFile, character_path: characterPath });
-        // pm2.connect(function (err) {
-        //     if (err) {
-        //         throw new Error(`Error connecting to PM2: ${err.message}`);
-        //         // process.exit(2);
-        //     }
-        //     // Check if process for this character is already running
-        //     const runningProcesses = ReadRunningProcessesFile();
-        //     // console.log('runningProcesses[character]', runningProcesses[character]);
-        //     if (runningProcesses[character]) {
-        //         if (isRestart) {
-        //             pm2.delete(runningProcesses[character].name, (err) => {
-        //                 if (err) {
-        //                     throw new Error(`Error deleting Eliza process PM2 with name: "${runningProcesses[character].name}": ${err.message}`);
-        //                 } else {
-        //                     delete runningProcesses[character];
-        //                     WriteRunningProcessesFile(runningProcesses);
-        //                     pm2.start({
-        //                         name: character, // PM2 process name
-        //                         script: 'pnpm',
-        //                         args: [`start${isDebug ? ':debug' : ''}`, `--characters=${characterPath}`],
-        //                         cwd: rootDir, // Set current directory for execution
-        //                         // log_file: logFile, // Direct output to a log file
-        //                         output: logFile, // Redirect stdout to log file
-        //                         error: logFile, // Redirect stderr to log file
-        //                     }, function (err, apps) {
-        //                         if (err) {
-        //                             pm2.disconnect();
-        //                             throw new Error(`Error starting Eliza process PM2 with name: "${character}": ${err.message}`);
-        //                             // process.exit(1);
-        //                         }
-        //                         if (!apps || apps.length === 0) {
-        //                             pm2.disconnect();
-        //                             throw new Error(`PM2 did not return process information for "${character}".`);
-        //                         }
-        //                         // console.log(`apps`, JSON.stringify(apps, null, 4));
-        //                         runningProcesses[character] = { pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, name: character, log_file: logFile, character_path: characterPathFull };
-        //                         WriteRunningProcessesFile(runningProcesses);
-        //                         console.log(`Started Eliza process PM2 with name: ${character} and id: ${apps[0].pm2_env.pm_id}`);
-        //                         pm2.disconnect(); // Disconnect from PM2 when done
-        //                         response.json({ status: true, pid: apps[0].pid, pm_id: apps[0].pm_id, character, log_file: logFile, character_path: characterPathFull });
-        //                     });
-        //                 }
-        //             });
-        //         } else {
-        //             return response.status(400).json({ error: `Eliza is already running for character: ${character}` });
-        //         }
-        //     } else {
-        //         // Start the process using pm2
-        //         pm2.start({
-        //             name: character, // PM2 process name
-        //             script: 'pnpm',
-        //             args: [`start${isDebug ? ':debug' : ''}`, `--characters=${characterPath}`],
-        //             cwd: rootDir, // Set current directory for execution
-        //             // log_file: logFile, // Direct output to a log file
-        //             output: logFile, // Redirect stdout to log file
-        //             error: logFile, // Redirect stderr to log file
-        //         }, function (err, apps) {
-        //             if (err) {
-        //                 pm2.disconnect();
-        //                 throw new Error(`Error starting Eliza process PM2 with name: "${character}": ${err.message}`);
-        //                 // process.exit(1);
-        //             }
-        //             // console.log(`apps`, JSON.stringify(apps, null, 4));
-        //             runningProcesses[character] = { pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, name: character, log_file: logFile, character_path: characterPathFull };
-        //             WriteRunningProcessesFile(runningProcesses);
-        //             console.log(`Started Eliza process PM2 with name: ${character} and id: ${apps[0].pm2_env.pm_id}`);
-        //             pm2.disconnect(); // Disconnect from PM2 when done
-        //             response.json({ status: true, pid: apps[0].pid, pm_id: apps[0].pm_id, character, log_file: logFile, character_path: characterPathFull });
-        //         });
-        //         // pm2.list((err, processList) => {
-        //         //     if (err) {
-        //         //         console.error('Error retrieving process list:', err);
-        //         //         pm2.disconnect();
-        //         //         process.exit(1);
-        //         //     }
-        //         //
-        //         //     console.log('PM2 Process List:');
-        //         //     processList.forEach((proc) => {
-        //         //         console.log(`proc`, JSON.stringify(proc, null, 4));
-        //         //         console.log(`Name: ${proc.name}, ID: ${proc.pm_id}, PID: ${proc.pid}`);
-        //         //         });
-        //         // });
-        //     }
-        // });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -330,36 +163,6 @@ async function StartCharacter(request, response) {
         });
     }
 }
-
-// async function StopCharacter(request, response) {
-//     try {
-//         const { query: { character } } = request;
-//         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-//         const rootDir = path.resolve('../');
-//         const characterPathFull = path.join(rootDir, `characters/${character}.character.json`);
-//
-//         const runningProcesses = ReadRunningProcessesFile();
-//         const processInfo = runningProcesses[character];
-//
-//         if (!processInfo) {
-//             return response.status(404).json({ error: `No running process found for ${characterPathFull}` });
-//         }
-//         // Kill the process and all child processes
-//         treeKill(processInfo.pid, 'SIGTERM', (err) => {
-//             if (err) console.error('Failed to kill process:', err);
-//         });
-//         console.log(`Eliza stopped with PID: ${process.pid} for ${characterPathFull}`);
-//         delete runningProcesses[character];
-//         WriteRunningProcessesFile(runningProcesses);
-//         await new Promise((resolve) => setTimeout(resolve, 2000));
-//         response.json({ status: true });
-//     } catch (error) {
-//         response.status(400).json({
-//             status: false,
-//             error: error.message,
-//         });
-//     }
-// }
 
 async function StopCharacter(request, response) {
     try {
@@ -394,11 +197,6 @@ async function RunList(request, response) {
             error: error.message,
         });
     }
-}
-
-async function RunListFile(request, response) {
-    const runningProcesses = ReadRunningProcessesFile();
-    response.json({ characters: runningProcesses });
 }
 
 async function CreateCharacter(request, response, update = false) {
@@ -513,27 +311,6 @@ async function CharacterView(request, response) {
     }
 }
 
-async function LogView(request, response) {
-    try{
-        const { query: { character } } = request;
-        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-        let logData = '';
-        const runningProcesses = await ReadRunningProcessesPm2();
-        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
-        if (runningCharacter) {
-            const logPath = runningCharacter.log_file;
-            if (fs.existsSync(logPath)) {
-                logData = fs.readFileSync(logPath, 'utf-8');
-            }
-        } else throw new Error(`Character not found in running processes`);
-        response.json({ status: true, log: logData, view: logData.split('\n') });
-    } catch (error) {
-        response.status(400).json({
-            status: false,
-            error: error.message,
-        });
-    }
-}
 async function LogViewStream(request, response) {
     try{
         const { query: { character } } = request;
@@ -580,20 +357,47 @@ async function LogViewStream(request, response) {
 
 async function CharacterLogErrors(request, response) {
     try {
-        const { query: { character, skipUnimpErrors, reverse } } = request;
-        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        const { query: { character, skipUnimpErrors, reverse, time_ago } } = request;
         const skipUnimportantErrors = skipUnimpErrors === 'true' || skipUnimpErrors === '1' || false;
+        // In minutes
+        const timeAgo = parseInt(time_ago);
+
         const reverseErrors = !(reverse === '0' || reverse === 'false');
-        const runningProcesses = await ReadRunningProcessesPm2();
-        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
-        if (runningCharacter) {
+        let runningProcesses = await ReadRunningProcessesPm2();
+        if (character) {
+            runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
+            if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
+        }
+        const errors = [];
+        for (const runningCharacter of runningProcesses) {
             const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
-                const errors = await LogErrors(logPath, skipUnimportantErrors);
-                if (reverseErrors) errors.reverse();
-                response.json({ status: true, errors });
+                let characterErrors = await LogErrors(logPath, skipUnimportantErrors);
+                if (reverseErrors) characterErrors.reverse();
+                if (timeAgo) {
+                    characterErrors = characterErrors.filter((error) => {
+                        let date = null;
+                        if (typeof error === 'string') {
+                            // Extract timestamp for string errors
+                            const match = error.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
+                            date = match ? new Date(match[0]) : null;
+                        } else if (Array.isArray(error)) {
+                            // Extract timestamp for array errors
+                            const match = error.find(item => /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(item));
+                            date = match ? new Date(match.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)[0]) : null;
+                        }
+                        // Check if date is valid and within the last 60 minutes
+                        return date && (Date.now() - date.getTime() <= timeAgo * 60 * 1000);
+                    });
+                }
+                errors.push({
+                    character: runningCharacter.name,
+                    errors: characterErrors
+                })
             } else throw new Error(`Lof file not found: ${logPath}`);
-        } else throw new Error(`Character not found in running processes`);
+        }
+        if (character) response.json({ status: true, errors: errors[0].errors });
+        response.json({ status: true, characters: errors });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -626,6 +430,10 @@ async function LogErrors(logFile, skipUnimportantErrors = false) {
             skipErrorBlock = false;
             continue;
         }
+        // if just one string
+        if (line.includes('⛔') && !isErrorBlock) {
+            errorBlocks.push(line.replace(/\x1b\[30m|\x1b\[31m|\x1b\[32m|\x1b\[33m|\x1b\[34m|\x1b\[35m|\x1b\[36m|\x1b\[37m|\x1b\[40m|\x1b\[43m|\x1b\[44m|\x1b\[45m|\x1b\[46m|\x1b\[47m|\x1b\[0m/g, "").trim());
+        }
         // Collect lines in the current 'ERRORS' block
         if (isErrorBlock) {
             const logEvents = ['LOGS', 'WARNINGS', 'INFORMATIONS', 'SUCCESS', 'DEBUG', 'ASSERT'];
@@ -657,6 +465,34 @@ async function ReadRunningProcessesPm2() {
     return list;
 }
 
+async function GetCharacterList() {
+    const rootDir = path.resolve('../');
+    const charactersPath = path.join(rootDir, `characters/`);
+    const files = await new Promise((resolve, reject) => fs.readdir(charactersPath, (err, files) => (err ? reject(new Error(`Error reading characters directory: ${err.message}`)) : resolve(files))));
+    return files.filter((file) => file.endsWith('.character.json')).map((file) => (file.split('.character')[0])); // Extract the part before `.character`
+}
+
+async function sendToBotNotifier(message) {
+    const { brnAccessToken, brnHost, botNotifierId } = common_config;
+    await got.post(`${brnHost}/broadcast`, {
+        headers: { 'x-access-token': brnAccessToken },
+        json: {
+            bot_id: botNotifierId,
+            type: 'manual',
+            timing: { timezone: 0, type: 'now' },
+            broadcast_data: { messages: [{ type: 'text', content: { text: message } }] },
+            subscribers: { context: [], providers: [], gender: [], tags: [], roles: [] },
+            name: `${botNotifierId} - ${(new Date().toISOString())}`,
+        },
+    }).json;
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+}
+
+async function RunListFile(request, response) {
+    const runningProcesses = ReadRunningProcessesFile();
+    response.json({ characters: runningProcesses });
+}
+
 // Read running processes from file
 function ReadRunningProcessesFile() {
     const { processFile } = common_config;
@@ -674,14 +510,7 @@ function WriteRunningProcessesFile(processes) {
     fs.writeFileSync(processFile, JSON.stringify(processes, null, 2));
 }
 
-async function GetCharacterList() {
-    const rootDir = path.resolve('../');
-    const charactersPath = path.join(rootDir, `characters/`);
-    const files = await new Promise((resolve, reject) => fs.readdir(charactersPath, (err, files) => (err ? reject(new Error(`Error reading characters directory: ${err.message}`)) : resolve(files))));
-    return files.filter((file) => file.endsWith('.character.json')).map((file) => (file.split('.character')[0])); // Extract the part before `.character`
-}
-
 // Start the server
 app.listen(port, () => {
-    console.log(`Eliza API running on http://localhost:${port}`);
+    console.log(`${new Date().toISOString()}. Eliza API running on http://localhost:${port}`);
 });
