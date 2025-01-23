@@ -247,6 +247,9 @@ importers:
       '@elizaos/plugin-sd-image-generation':
         specifier: workspace:*
         version: link:../packages/plugin-sd-generation
+      '@elizaos/plugin-comfy-generation':
+        specifier: workspace:*
+        version: link:../packages/plugin-comfy-generation
       '@elizaos/plugin-intiface':
         specifier: workspace:*
         version: link:../packages/plugin-intiface
