@@ -54,7 +54,7 @@
         "@elizaos/plugin-icp": "workspace:*",
         "@elizaos/plugin-image-generation": "workspace:*",
         "@elizaos/plugin-sd-image-generation": "workspace:*",
-        "@elizaos/plugin-sd-image-generation": "workspace:*",
+        "@elizaos/plugin-comfy-generation": "workspace:*",
         "@elizaos/plugin-movement": "workspace:*",
         "@elizaos/plugin-massa": "workspace:*",
         "@elizaos/plugin-nft-generation": "workspace:*",
