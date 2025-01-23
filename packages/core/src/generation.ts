@@ -389,10 +389,7 @@ export async function generateText({
 
     const apiKey = runtime.token;
 
-    let systemCharacterPrompt = runtime.character.system || "";
-    if (Array.isArray(systemCharacterPrompt)) {
-        systemCharacterPrompt = systemCharacterPrompt.join("\n");
-    }
+    const systemCharacterPrompt = (Array.isArray(runtime.character.system) ? runtime.character.system.join("\n") : runtime.character.system) || "";
 
     try {
         elizaLogger.debug(

@@ -13,7 +13,7 @@ export default function Overview({ character }: { character: Character }) {
             <div className="space-y-4">
                 <InputCopy title="Name" value={character?.name} />
                 <InputCopy title="Username" value={character?.username} />
-                <InputCopy title="System" value={character?.system} />
+                <InputCopy title="System" value={Array.isArray(character?.system) ? character?.system.join("\n") : character?.system} />
                 <InputCopy title="Model" value={character?.modelProvider} />
                 <InputCopy
                     title="Voice Model"
