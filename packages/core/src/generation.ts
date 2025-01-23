@@ -389,6 +389,11 @@ export async function generateText({
 
     const apiKey = runtime.token;
 
+    let systemCharacterPrompt = runtime.character.system || "";
+    if (Array.isArray(systemCharacterPrompt)) {
+        systemCharacterPrompt = systemCharacterPrompt.join("\n");
+    }
+
     try {
         elizaLogger.debug(
             `Trimming context to max length of ${max_context_length} tokens.`
@@ -428,7 +433,7 @@ export async function generateText({
                     model: openai.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -488,7 +493,7 @@ export async function generateText({
                 const { text: openaiResponse } = await aiGenerateText({
                     model: openai.languageModel(model),
                     prompt: context,
-                    system: runtime.character.system ?? settings.SYSTEM_PROMPT ?? undefined,
+                    system: systemCharacterPrompt ?? settings.SYSTEM_PROMPT ?? undefined,
                     temperature: temperature,
                     maxTokens: max_response_length,
                     frequencyPenalty: frequency_penalty,
@@ -510,7 +515,7 @@ export async function generateText({
                     model: google(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -535,7 +540,7 @@ export async function generateText({
                     model: mistral(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
@@ -559,7 +564,7 @@ export async function generateText({
                     model: anthropic.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -589,7 +594,7 @@ export async function generateText({
                     model: anthropic.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -623,7 +628,7 @@ export async function generateText({
                     }),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -652,7 +657,7 @@ export async function generateText({
                     prompt: context,
                     temperature,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools,
@@ -708,7 +713,7 @@ export async function generateText({
                     prompt: context,
                     temperature: temperature,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -739,7 +744,7 @@ export async function generateText({
                     prompt: context,
                     temperature: temperature,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -799,7 +804,7 @@ export async function generateText({
                     prompt: context,
                     system:
                         customSystemPrompt ??
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -852,7 +857,7 @@ export async function generateText({
                     model: openai.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -890,7 +895,7 @@ export async function generateText({
                     model: galadriel.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -926,7 +931,7 @@ export async function generateText({
                     model: infera.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     temperature: temperature,
@@ -950,7 +955,7 @@ export async function generateText({
                     model: venice.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -979,7 +984,7 @@ export async function generateText({
                     prompt: context,
                     temperature: temperature,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,

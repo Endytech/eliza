@@ -705,7 +705,7 @@ export type Character = {
     username?: string;
 
     /** Optional system prompt */
-    system?: string;
+    system?: string | string[];
 
     /** Model provider to use */
     modelProvider: ModelProviderName;

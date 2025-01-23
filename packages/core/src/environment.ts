@@ -67,7 +67,7 @@ const PluginSchema = z.object({
 export const CharacterSchema = z.object({
     id: z.string().uuid().optional(),
     name: z.string(),
-    system: z.string().optional(),
+    system: z.union([z.string(), z.array(z.string())]).optional(),
     modelProvider: z.nativeEnum(ModelProviderName),
     modelEndpointOverride: z.string().optional(),
     templates: z.record(z.string()).optional(),
