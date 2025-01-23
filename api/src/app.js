@@ -28,8 +28,8 @@ app.get('/character/runlist', RunList);
 app.get('/character/log', LogViewStream);
 // View character log errors
 app.get('/character/errors', CharacterLogErrors);
-
-app.get('/character/errors1', CharacterNotifyErrors);
+// To test notification messages
+app.get('/character/errors-notify', CharacterNotifyErrors);
 // Create character
 app.post('/character', CreateCharacter);
 // Update character
@@ -44,17 +44,19 @@ app.get('/character', CharacterView);
 
 async function CharacterNotifyErrors(request, response) {
     try {
-        const { query: { character, needNotifyErrorsByBotNotifier } } = request;
+        const { query: { character, needNotifyErrorsByBotNotifier, time_ago, errmsg_keeplength, errmsg_maxlength } } = request;
         const { notifyPeriod } = common_config;
         // In minutes
-        const time = parseInt(notifyPeriod) || 60;
+        const time = time_ago || notifyPeriod || 60;
+        const errMsgKeepLength = errmsg_keeplength || 1200;
+        const errMsgMaxLength = errmsg_maxlength || 5000;
         let runningProcesses = await ReadRunningProcessesPm2();
         if (character) runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
         const errors = [];
         for (const runningCharacter of runningProcesses) {
             const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
-                let characterErrors = await LogErrors(logPath);
+                let characterErrors = await LogErrors(logPath, errMsgKeepLength, errMsgMaxLength);
                 characterErrors.reverse();
                 characterErrors = characterErrors.filter((error) => {
                     let date = null;
@@ -74,27 +76,46 @@ async function CharacterNotifyErrors(request, response) {
                     character: runningCharacter.name,
                     errors: characterErrors
                 })
-                if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) await sendToBotNotifier(`Character: ${runningCharacter.name}\n\n${characterErrors.join('\n')}`);
+                if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) await sendToBotNotifier(`_____________________\nCharacter: ${runningCharacter.name}\n\n${characterErrors.join('\n\n')}`);
             } else throw new Error(`Lof file not found: ${logPath}`);
         }
         if (response){
-            if (character) response.json({ status: true, errors: errors[0].errors });
-            response.json({ status: true, characters: errors });
+            if (character) {
+                response.json({ status: true, errors: errors[0].errors });
+            } else {
+                response.json({ status: true, characters: errors });
+            }
         }
     } catch (error) {
-        throw new Error(`Error get log in notify loop: ${error.message}`);
+        throw new Error(`Error get error log in notify loop: ${error.message}`);
     }
 }
 
-async function autoCharacterNotifyErrors(request, response) {
-    let { notifyPeriod, needNotifyErrorsByBotNotifier } = common_config;
+async function autoCharacterNotifyErrors() {
+    let { notifyPeriod, needNotifyErrorsByBotNotifier, errMsgKeeplength: errmsg_keeplength, errMsgMaxlength: errmsg_maxlength, appDataFile } = common_config;
     notifyPeriod = notifyPeriod || 60;
     if (needNotifyErrorsByBotNotifier) {
+        try {
+            const appData = ReadJsonFile(appDataFile);
+            if (appData?.notifyLastTime) {
+                const notifyLastTime = new Date(appData.notifyLastTime);
+                const elapsed = new Date() - notifyLastTime;
+                if (elapsed < notifyPeriod * 60 * 1000) {
+                    const waitTime = notifyPeriod * 60 * 1000 - elapsed;
+                    await new Promise((resolve) => setTimeout(resolve, waitTime));
+                }
+            }
+        } catch (error) {
+            console.error(`${new Date().toISOString()}. Error get pause before notification loop start: ${error}`);
+        }
         while (true) {
             try {
-                await CharacterNotifyErrors({ query: { needNotifyErrorsByBotNotifier } });
+                await CharacterNotifyErrors({ query: { needNotifyErrorsByBotNotifier, errmsg_keeplength, errmsg_maxlength } });
+            const appData = ReadJsonFile(appDataFile);
+            appData.notifyLastTime = new Date().toISOString();
+            WriteJsonFile(appDataFile, appData);
             } catch (error) {
-                console.error(`${new Date().toISOString()}. Error during notification: ${error}`);
+                console.error(`${new Date().toISOString()}. Error during notification loop: ${error}`);
             }
             // Wait for the notify period before the next iteration
             await new Promise((resolve) => setTimeout(resolve, notifyPeriod * 60 * 1000));
@@ -132,7 +153,7 @@ async function StartCharacter(request, response) {
                 // Delete the existing process
                 await new Promise((resolve, reject) => pm2.delete(runningCharacter.name,(err)=>
                     (err ? reject(new Error(`Error deleting Eliza process PM2 with name: "${runningCharacter.name}": ${err.message}`)) : resolve())));
-                // WriteRunningProcessesFile(runningProcesses);
+                // WriteJsonFile(runningProcesses);
             } else {
                 return response.status(400).json({ error: `Eliza is already running for character: ${character}` });
             }
@@ -152,7 +173,7 @@ async function StartCharacter(request, response) {
             throw new Error(`Error on start Eliza process PM2 with name: ${character}`);
         }
         // runningProcesses[character] = { pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, name: character, log_file: logFile, character_path: characterPathFull };
-        // WriteRunningProcessesFile(runningProcesses);
+        // WriteJsonFile(runningProcesses);
         console.log(`${new Date().toISOString()}. Character started. Name: ${character}. Id: ${apps[0].pm2_env.pm_id}`);
         pm2.disconnect(); // Disconnect from PM2 when done
         response.json({ status: true, pid: apps[0].pid, pm_id: apps[0].pm2_env.pm_id, character, log_file: logFile, character_path: characterPath });
@@ -176,7 +197,7 @@ async function StopCharacter(request, response) {
         await new Promise((resolve, reject) => pm2.delete(runningCharacter.name,(err)=>
             (err ? reject(new Error(`Error stop Eliza process PM2 with name: "${runningCharacter.name}": ${err.message}`)) : resolve())));
         console.log(`${new Date().toISOString()}. Character stopped. Name: ${runningCharacter.name}. Id: ${runningCharacter.pm_id}.`);
-        // WriteRunningProcessesFile(runningProcesses);
+        // WriteJsonFile(runningProcesses);
         pm2.disconnect();
         response.json({ status: true });
     } catch (error) {
@@ -259,7 +280,7 @@ async function DeleteCharacter(request, response) {
             await new Promise((resolve, reject) => pm2.delete(runningCharacter.name,(err)=>
                 (err ? reject(new Error(`Error stop Eliza process PM2 with name: "${runningCharacter.name}": ${err.message}`)) : resolve())));
             console.log(`${new Date().toISOString()}. Character stopped. name: ${runningCharacter.name}. Id: ${runningCharacter.pm_id}.`);
-            // WriteRunningProcessesFile(runningProcesses);
+            // WriteJsonFile(runningProcesses);
             await new Promise((resolve) => setTimeout(resolve, 2000));
         }
         console.log(`${new Date().toISOString()}. Character deleted. Name: ${character}.`);
@@ -357,11 +378,12 @@ async function LogViewStream(request, response) {
 
 async function CharacterLogErrors(request, response) {
     try {
-        const { query: { character, skipUnimpErrors, reverse, time_ago } } = request;
+        const { query: { character, skipUnimpErrors, reverse, time_ago, errmsg_keeplength, errmsg_maxlength } } = request;
         const skipUnimportantErrors = skipUnimpErrors === 'true' || skipUnimpErrors === '1' || false;
         // In minutes
-        const timeAgo = parseInt(time_ago);
-
+        const timeAgo = time_ago;
+        const errMsgKeepLength = errmsg_keeplength || 1200;
+        const errMsgMaxLength = errmsg_maxlength || 5000;
         const reverseErrors = !(reverse === '0' || reverse === 'false');
         let runningProcesses = await ReadRunningProcessesPm2();
         if (character) {
@@ -372,7 +394,7 @@ async function CharacterLogErrors(request, response) {
         for (const runningCharacter of runningProcesses) {
             const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
-                let characterErrors = await LogErrors(logPath, skipUnimportantErrors);
+                let characterErrors = await LogErrors(logPath, errMsgKeepLength, errMsgMaxLength, skipUnimportantErrors);
                 if (reverseErrors) characterErrors.reverse();
                 if (timeAgo) {
                     characterErrors = characterErrors.filter((error) => {
@@ -396,8 +418,9 @@ async function CharacterLogErrors(request, response) {
                 })
             } else throw new Error(`Lof file not found: ${logPath}`);
         }
-        if (character) response.json({ status: true, errors: errors[0].errors });
-        response.json({ status: true, characters: errors });
+        if (character) {
+            response.json({ status: true, errors: errors[0].errors });
+        } else response.json({ status: true, characters: errors });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -406,7 +429,7 @@ async function CharacterLogErrors(request, response) {
     }
 }
 
-async function LogErrors(logFile, skipUnimportantErrors = false) {
+async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
     const errorBlocks = [];
     let errorBlock = [];
     let isErrorBlock = false;
@@ -425,14 +448,14 @@ async function LogErrors(logFile, skipUnimportantErrors = false) {
                 if (!skipErrorBlock) errorBlocks.push(errorBlock);
                 errorBlock = [];
             }
-            errorBlock.push(line.replace(/\x1b\[30m|\x1b\[31m|\x1b\[32m|\x1b\[33m|\x1b\[34m|\x1b\[35m|\x1b\[36m|\x1b\[37m|\x1b\[40m|\x1b\[43m|\x1b\[44m|\x1b\[45m|\x1b\[46m|\x1b\[47m|\x1b\[0m/g, "").trim());
+            errorBlock.push(clearContent(line, keepLength, maxLength));
             isErrorBlock = true;
             skipErrorBlock = false;
             continue;
         }
         // if just one string
         if (line.includes('⛔') && !isErrorBlock) {
-            errorBlocks.push(line.replace(/\x1b\[30m|\x1b\[31m|\x1b\[32m|\x1b\[33m|\x1b\[34m|\x1b\[35m|\x1b\[36m|\x1b\[37m|\x1b\[40m|\x1b\[43m|\x1b\[44m|\x1b\[45m|\x1b\[46m|\x1b\[47m|\x1b\[0m/g, "").trim());
+            errorBlocks.push(clearContent(line, keepLength, maxLength));
         }
         // Collect lines in the current 'ERRORS' block
         if (isErrorBlock) {
@@ -447,11 +470,25 @@ async function LogErrors(logFile, skipUnimportantErrors = false) {
                     const skipErrors = ['OpenAI API error:', 'OpenAI request failed', 'Error in recognizeWithOpenAI:', 'Error in handleTextOnlyReply:', 'Error in quote tweet generation:'];
                     if (skipErrors.some(skipError => line.includes(skipError))) skipErrorBlock = true;
                 }
-                errorBlock.push(line.replace(/\x1b\[30m|\x1b\[31m|\x1b\[32m|\x1b\[33m|\x1b\[34m|\x1b\[35m|\x1b\[36m|\x1b\[37m|\x1b\[40m|\x1b\[43m|\x1b\[44m|\x1b\[45m|\x1b\[46m|\x1b\[47m|\x1b\[0m/g, "").trim());
+                errorBlock.push(clearContent(line, keepLength, maxLength));
             }
         }
     }
     return errorBlocks;
+}
+
+function trimMiddleContent(bigString, keepLength, maxLength) {
+    if (bigString.length <= maxLength) return bigString;
+    const halfKeepLength = Math.floor(keepLength / 2);
+    const startPart = bigString.slice(0, halfKeepLength); // Extract the beginning part
+    const endPart = bigString.slice(-halfKeepLength);    // Extract the ending part
+    return `${startPart}...[CONTENT REMOVED]...${endPart}`;
+}
+
+function clearContent(line, keepLength, maxLength) {
+    let clearContent = line.replace(/\x1b\[30m|\x1b\[31m|\x1b\[32m|\x1b\[33m|\x1b\[34m|\x1b\[35m|\x1b\[36m|\x1b\[37m|\x1b\[40m|\x1b\[43m|\x1b\[44m|\x1b\[45m|\x1b\[46m|\x1b\[47m|\x1b\[0m/g, "").trim();
+    clearContent = trimMiddleContent(clearContent, keepLength, maxLength);
+    return clearContent;
 }
 
 // Read running processes from pm2
@@ -489,25 +526,24 @@ async function sendToBotNotifier(message) {
 }
 
 async function RunListFile(request, response) {
-    const runningProcesses = ReadRunningProcessesFile();
+    const runningProcesses = ReadJsonFile();
     response.json({ characters: runningProcesses });
 }
 
 // Read running processes from file
-function ReadRunningProcessesFile() {
-    const { processFile } = common_config;
-    if (!processFile) throw new Error("processFile required at config");
-    if (fs.existsSync(processFile)) {
-        return JSON.parse(fs.readFileSync(processFile, 'utf-8'));
+function ReadJsonFile(filePath) {
+    if (!filePath) throw new Error("File path required");
+    if (fs.existsSync(filePath)) {
+        return JSON.parse(fs.readFileSync(filePath, 'utf-8'));
     }
     return {};
 }
 
 // Write running processes to file
-function WriteRunningProcessesFile(processes) {
+function WriteJsonFile(filePath, data) {
+    if (!filePath) throw new Error("File path required");
     const { processFile } = common_config;
-    if (!processFile) throw new Error("processFile required at config");
-    fs.writeFileSync(processFile, JSON.stringify(processes, null, 2));
+    fs.writeFileSync(filePath, JSON.stringify(data, null, 2));
 }
 
 // Start the server
