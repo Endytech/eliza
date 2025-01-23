@@ -757,6 +757,9 @@ export async function createAgent(
             getSecret(character, "SD_IMAGE_GEN_API_KEY")
                 ? imageSDGenerationPlugin
                 : null,
+            getSecret(character, "SD_VIDEO_GEN_API_KEY")
+                ? videoSDGenerationPlugin
+                : null,
             ((getSecret(character, "FAL_API_KEY") ||
             getSecret(character, "OPENAI_API_KEY") ||
             getSecret(character, "VENICE_API_KEY") ||
