@@ -82,9 +82,12 @@ async function CharacterNotifyErrors(request, response) {
         }
         // Notify about total errors for each character
         for (const errorItem of errors) {
-            if (errorItem.errors.length > 0) totalErrors.push(`_____________________\nCharacter: ${errorItem.character}\nTotal errors count: ${errorItem.errors.length}`);
+            if (errorItem.errors.length > 0) totalErrors.push(`Character: ${errorItem.character}\nTotal errors count: ${errorItem.errors.length}\n_____________________`);
         }
-        if (needNotifyErrorsByBotNotifier && totalErrors.length > 0) await sendToBotNotifier(totalErrors.join("\n\n"));
+        if (needNotifyErrorsByBotNotifier && totalErrors.length > 0) {
+            await new Promise((resolve) => setTimeout(resolve, 2000 * 60 * 1000));
+            await sendToBotNotifier(totalErrors.join("\n"));
+        }
 
         if (response){
             if (character) {
