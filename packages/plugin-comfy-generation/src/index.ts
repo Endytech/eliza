@@ -194,7 +194,7 @@ export const videoSDGeneration: Action = {
 
         try {
             // Загрузка шаблона prompt.json
-            const promptData = JSON.parse(fs.readFileSync("prompt.json", "utf-8"));
+            const promptData = JSON.parse(fs.readFileSync("../prompt.json", "utf-8"));
 
             // Динамическая подстановка prompt в "44.inputs.text"
             promptData["44"]["inputs"]["text"] = videoPrompt;
