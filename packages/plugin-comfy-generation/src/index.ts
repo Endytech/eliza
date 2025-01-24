@@ -194,7 +194,7 @@ export const videoSDGeneration: Action = {
 
         try {
             // Загрузка шаблона prompt.json
-            const promptData = JSON.parse(fs.readFileSync("../prompt.json", "utf-8"));
+            const promptData = JSON.parse(fs.readFileSync("../packages/plugin-comfy-generation/prompt.json", "utf-8"));
 
             // Динамическая подстановка prompt в "44.inputs.text"
             promptData["44"]["inputs"]["text"] = videoPrompt;
@@ -203,7 +203,7 @@ export const videoSDGeneration: Action = {
 
             // Вызов функции генерации видео
             const result = await generateSDVideo(promptData, runtime);
-
+            
             if (result.success) {
                 const { videoPath, additionalData } = result;
                 elizaLogger.log("videoSDGeneration result.success url:", videoPath);
