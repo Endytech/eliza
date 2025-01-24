@@ -77,7 +77,10 @@ async function CharacterNotifyErrors(request, response) {
                     character: runningCharacter.name,
                     errors: characterErrors
                 })
-                if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) await sendToBotNotifier(`_____________________\nCharacter: ${runningCharacter.name}\n\n${characterErrors.join('\n\n')}`);
+                if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) {
+                    await new Promise((resolve) => setTimeout(resolve,  1000));
+                    await sendToBotNotifier(`_____________________\nCharacter: ${runningCharacter.name}\n\n${characterErrors.join('\n\n')}`);
+                }
             } else throw new Error(`Lof file not found: ${logPath}`);
         }
         // Notify about total errors for each character
@@ -85,7 +88,7 @@ async function CharacterNotifyErrors(request, response) {
             if (errorItem.errors.length > 0) totalErrors.push(`Character: ${errorItem.character}\nTotal errors count: ${errorItem.errors.length}\n_____________________`);
         }
         if (needNotifyErrorsByBotNotifier && totalErrors.length > 0) {
-            await new Promise((resolve) => setTimeout(resolve,  2000));
+            await new Promise((resolve) => setTimeout(resolve,  3000));
             await sendToBotNotifier(totalErrors.join("\n"));
         }
 
