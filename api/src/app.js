@@ -84,7 +84,7 @@ async function CharacterNotifyErrors(request, response) {
         for (const errorItem of errors) {
             if (errorItem.errors.length > 0) totalErrors.push(`_____________________\nCharacter: ${errorItem.character}\nTotal errors count: ${errorItem.errors.length}`);
         }
-        if (needNotifyErrorsByBotNotifier) await sendToBotNotifier(totalErrors.join("\n\n"));
+        if (needNotifyErrorsByBotNotifier && totalErrors.length > 0) await sendToBotNotifier(totalErrors.join("\n\n"));
 
         if (response){
             if (character) {
