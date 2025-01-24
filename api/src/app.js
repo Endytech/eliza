@@ -123,7 +123,7 @@ async function autoCharacterNotifyErrors() {
         }
         while (true) {
             try {
-                await CharacterNotifyErrors({ query: { needNotifyErrorsByBotNotifier, errmsg_keeplength, errmsg_maxlength } });
+                await CharacterNotifyErrors({ query: { character: 'picklepal', needNotifyErrorsByBotNotifier, time_ago: 9999999, errmsg_keeplength, errmsg_maxlength } });
             const appData = ReadJsonFile(appDataFile);
             appData.notifyLastTime = new Date().toISOString();
             WriteJsonFile(appDataFile, appData);
