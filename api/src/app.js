@@ -53,6 +53,7 @@ async function CharacterNotifyErrors(request, response) {
         let runningProcesses = await ReadRunningProcessesPm2();
         if (character) runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
         const errors = [];
+        const totalErrors = []
         for (const runningCharacter of runningProcesses) {
             const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
@@ -79,11 +80,17 @@ async function CharacterNotifyErrors(request, response) {
                 if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) await sendToBotNotifier(`_____________________\nCharacter: ${runningCharacter.name}\n\n${characterErrors.join('\n\n')}`);
             } else throw new Error(`Lof file not found: ${logPath}`);
         }
+        // Notify about total errors for each character
+        for (const errorItem of errors) {
+            if (errorItem.errors.length > 0) totalErrors.push(`Character: ${errorItem.character}\n\nTotal errors count: ${errorItem.errors.length}`;
+        }
+        if (needNotifyErrorsByBotNotifier) await sendToBotNotifier(totalErrors.join("\n\n"));
+
         if (response){
             if (character) {
                 response.json({ status: true, errors: errors[0].errors });
             } else {
-                response.json({ status: true, characters: errors });
+                response.json({ status: true, characters: errors, total: totalErrors });
             }
         }
     } catch (error) {
