@@ -204,6 +204,9 @@ export const videoSDGeneration: Action = {
             // Вызов функции генерации видео
             const result = await generateSDVideo(promptData, runtime);
             
+            elizaLogger.log("result", JSON.stringify(result,null, 2));
+            elizaLogger.log("result.success", result.success);
+
             if (result.success) {
                 const { videoUrls, additionalData } = result;
                 elizaLogger.log("videoSDGeneration result.success url:", videoUrls);
