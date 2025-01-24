@@ -683,6 +683,8 @@ export class MessageManager {
                     await this.sendAnimation(ctx, attachment.url, attachment.description);
                 } else if (attachment.contentType.startsWith("image")) {
                     await this.sendImage(ctx, attachment.url, attachment.description);
+                } else if (["video/mp4"].includes(attachment.contentType)) {
+                    await this.sendVideo(ctx, attachment.url, attachment.description);
                 }
             });
         } else {
@@ -786,6 +788,41 @@ export class MessageManager {
             elizaLogger.info(`Animation sent successfully: ${animationPath}`);
         } catch (error) {
             elizaLogger.error("Error sending animation:", error);
+        }
+    }
+
+    private async sendVideo(
+        ctx: Context,
+        videoPath: string,
+        caption?: string
+    ): Promise<void> {
+        try {
+            if (/^(http|https):\/\//.test(videoPath)) {
+                // Handle HTTP URLs
+                await ctx.telegram.sendVideo(ctx.chat.id, videoPath, {
+                    caption,
+                });
+            } else {
+                // Handle local file paths
+                if (!fs.existsSync(videoPath)) {
+                    throw new Error(`File not found: ${videoPath}`);
+                }
+
+                const fileStream = fs.createReadStream(videoPath);
+
+                await ctx.telegram.sendVideo(
+                    ctx.chat.id,
+                    {
+                        source: fileStream,
+                    },
+                    {
+                        caption,
+                    }
+                );
+            }
+            elizaLogger.info(`Video sent successfully: ${videoPath}`);
+        } catch (error) {
+            elizaLogger.error("Error sending video:", error);
         }
     }
 
