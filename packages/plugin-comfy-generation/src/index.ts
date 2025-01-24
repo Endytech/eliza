@@ -106,26 +106,26 @@ export const generateSDVideo = async (promptData: any, runtime: any) => {
             throw new Error("No video URLs returned in the response.");
         }
 
-        const videoDir = path.join(process.cwd(), "generatedVideos");
-        if (!fs.existsSync(videoDir)) {
-            fs.mkdirSync(videoDir, { recursive: true });
-        }
+        // const videoDir = path.join(process.cwd(), "generatedVideos");
+        // if (!fs.existsSync(videoDir)) {
+        //     fs.mkdirSync(videoDir, { recursive: true });
+        // }
 
-        const videoFilename = `generated_video_${Date.now()}.mp4`;
-        const videoResponse = await fetch(videoUrls);
-        if (!videoResponse.ok) {
-            throw new Error(`Failed to download video: ${videoResponse.statusText}`);
-        }
+        // const videoFilename = `generated_video_${Date.now()}.mp4`;
+        // const videoResponse = await fetch(videoUrls);
+        // if (!videoResponse.ok) {
+        //     throw new Error(`Failed to download video: ${videoResponse.statusText}`);
+        // }
 
-        const videoBuffer = await videoResponse.buffer();
-        const videoPath = path.join(videoDir, videoFilename);
-        fs.writeFileSync(videoPath, videoBuffer);
+        // const videoBuffer = await videoResponse.buffer();
+        // const videoPath = path.join(videoDir, videoFilename);
+        // fs.writeFileSync(videoPath, videoBuffer);
 
-        console.log(`Video saved to ${videoPath}`);
+        console.log(`Video saved to ${videoUrls}`);
 
         return {
             success: true,
-            videoPath,
+            videoUrls,
             additionalData: {
                 delayTime: completedData.delayTime,
                 executionTime: completedData.executionTime,
@@ -205,15 +205,15 @@ export const videoSDGeneration: Action = {
             const result = await generateSDVideo(promptData, runtime);
 
             if (result.success) {
-                const { videoPath, additionalData } = result;
-                elizaLogger.log("videoSDGeneration result.success url:", videoPath);
+                const { videoUrls, additionalData } = result;
+                elizaLogger.log("videoSDGeneration result.success url:", videoUrls);
                 callback(
                     {
                         text: `Here's your generated video (Execution time: ${additionalData.executionTime}ms):`,
                         attachments: [
                             {
                                 id: crypto.randomUUID(),
-                                url: videoPath,
+                                url: videoUrls,
                                 title: "Generated Video",
                                 source: "videoSDGeneration",
                                 description: videoPrompt,
@@ -222,7 +222,7 @@ export const videoSDGeneration: Action = {
                             },
                         ],
                     },
-                    [videoPath]
+                    [videoUrls]
                 );
             } else {
                 callback({
