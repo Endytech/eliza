@@ -154,24 +154,28 @@ export class SqliteDatabaseAdapter
         agentId: UUID;
         roomIds: UUID[];
         tableName: string;
+        limit?: number;
     }): Promise<Memory[]> {
         if (!params.tableName) {
             // default to messages
             params.tableName = "messages";
         }
+        elizaLogger.info("Sqlite getMemoriesByRoomIds used");
         const placeholders = params.roomIds.map(() => "?").join(", ");
-        const sql = `SELECT * FROM memories WHERE type = ? AND agentId = ? AND roomId IN (${placeholders})`;
+        const sql = `SELECT * FROM memories WHERE type = ? AND agentId = ? AND roomId IN (${placeholders})${params.limit ? " LIMIT ?" : ""}`;
         const queryParams = [
             params.tableName,
             params.agentId,
             ...params.roomIds,
         ];
-
+        if (params.limit) {
+            queryParams.push(params.limit);
+        }
         const stmt = this.db.prepare(sql);
         const rows = stmt.all(...queryParams) as (Memory & {
             content: string;
         })[];
-
+        elizaLogger.info("Sqlite getMemoriesByRoomIds rows count", rows.length);
         return rows.map((row) => ({
             ...row,
             content: JSON.parse(row.content),
