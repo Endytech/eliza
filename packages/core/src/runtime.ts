@@ -1006,6 +1006,9 @@ export class AgentRuntime implements IAgentRuntime {
             }),
         ]);
 
+        elizaLogger.info("conversationLength", conversationLength)
+        elizaLogger.info("recentMessagesData length", recentMessagesData.length)
+
         const goals = formatGoalsAsString({ goals: goalsData });
 
         const actors = formatActors({ actors: actorsData ?? [] });
