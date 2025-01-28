@@ -169,7 +169,7 @@ export class SqliteDatabaseAdapter
             ...params.roomIds,
         ];
         if (params.limit) {
-            queryParams.push(params.limit);
+            queryParams.push(params.limit.toString());
         }
         const stmt = this.db.prepare(sql);
         const rows = stmt.all(...queryParams) as (Memory & {
