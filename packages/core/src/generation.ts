@@ -146,23 +146,17 @@ async function truncateTiktoken(
 
         // Encode the text into tokens
         const tokens = encoding.encode(context);
-        elizaLogger.info(`maxTokens: ${maxTokens}. numTokens ${tokens.length}`);
+        elizaLogger.info(`Content - maxTokens: ${maxTokens}, numTokens ${tokens.length}`);
         // If already within limits, return unchanged
-        if (tokens.length <= maxTokens) {
+        if (tokens.length < maxTokens) {
             return context;
+        } else if (tokens.length === maxTokens) {
+            return encoding.decode(tokens);
         }
-
         // Keep the most recent tokens by slicing from the end
         const truncatedTokens = tokens.slice(-maxTokens);
-
-
         // Decode back to text - js-tiktoken decode() returns a string directly
-        const result = encoding.decode(truncatedTokens);
-
-        const result_tokens = encoding.encode(result);
-        elizaLogger.info(`truncatedTokens length: ${truncatedTokens}. verification truncatedTokens length ${result_tokens}`);
-        return result
-        // return encoding.decode(truncatedTokens);
+        return encoding.decode(truncatedTokens);
     } catch (error) {
         elizaLogger.error("Error in trimTokens:", error);
         // Return truncated string if tokenization fails
