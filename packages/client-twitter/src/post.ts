@@ -691,7 +691,8 @@ export class TwitterPostClient {
                         cleanedContent,
                         roomId,
                         newTweetContent,
-                        this.twitterUsername
+                        this.twitterUsername,
+                        mediaData
                     );
                 }
             } catch (error) {
