@@ -160,9 +160,9 @@ export class SqliteDatabaseAdapter
             // default to messages
             params.tableName = "messages";
         }
-        elizaLogger.info("Sqlite getMemoriesByRoomIds used");
         const placeholders = params.roomIds.map(() => "?").join(", ");
-        const sql = `SELECT * FROM memories WHERE type = ? AND agentId = ? AND roomId IN (${placeholders})${params.limit ? " LIMIT ?" : ""}`;
+        const sql = `SELECT * FROM memories WHERE type = ? AND agentId = ? AND roomId IN (${placeholders}) ORDER BY createdAt DESC${params.limit ? " LIMIT ?" : ""}`;
+
         const queryParams = [
             params.tableName,
             params.agentId,
@@ -175,7 +175,6 @@ export class SqliteDatabaseAdapter
         const rows = stmt.all(...queryParams) as (Memory & {
             content: string;
         })[];
-        elizaLogger.info("Sqlite getMemoriesByRoomIds rows count", rows.length);
         return rows.map((row) => ({
             ...row,
             content: JSON.parse(row.content),

@@ -90,18 +90,15 @@ export async function trimTokens(
 
     if (!tokenizerModel || !tokenizerType) {
         // Default to TikToken truncation using the "gpt-4o" model if tokenizer settings are not defined
-        elizaLogger.info(`tokenizerType normal used`);
         return truncateTiktoken("gpt-4o", context, maxTokens);
     }
 
     // Choose the truncation method based on tokenizer type
     if (tokenizerType === TokenizerType.Auto) {
-        elizaLogger.info(`tokenizerType auto used`);
         return truncateAuto(tokenizerModel, context, maxTokens);
     }
 
     if (tokenizerType === TokenizerType.TikToken) {
-        elizaLogger.info(`tokenizerType TikToken used`);
         return truncateTiktoken(
             tokenizerModel as TiktokenModel,
             context,
@@ -151,15 +148,13 @@ async function truncateTiktoken(
         const tokens = encoding.encode(context);
         elizaLogger.info(`Content - maxTokens: ${maxTokens}, numTokens ${tokens.length}`);
         // If already within limits, return unchanged
-        if (tokens.length < maxTokens) {
+        if (tokens.length <= maxTokens) {
             return context;
-        } else if (tokens.length === maxTokens) {
-            elizaLogger.info(`Content equal ${maxTokens}`);
-            const truncatedTokens = tokens.slice(-maxTokens);
-            return encoding.decode(truncatedTokens);
         }
+
         // Keep the most recent tokens by slicing from the end
         const truncatedTokens = tokens.slice(-maxTokens);
+
         // Decode back to text - js-tiktoken decode() returns a string directly
         return encoding.decode(truncatedTokens);
     } catch (error) {
