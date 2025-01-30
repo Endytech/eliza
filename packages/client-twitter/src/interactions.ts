@@ -378,7 +378,6 @@ export class TwitterInteractionClient {
             ? `\nImages in Tweet:\n${imageDescriptionsArray.map((desc, i) =>
               `Image ${i + 1}: Title: ${desc.title}\nDescription: ${desc.description}`).join("\n\n")}`:""
         });
-        elizaLogger.debug("state: ", JSON.stringify(state.recentPostInteractions, null, 2));
         // check if the tweet exists, save if it doesn't
         const tweetId = stringToUuid(tweet.id + "-" + this.runtime.agentId);
         const tweetExists =
