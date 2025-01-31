@@ -30,6 +30,8 @@ app.get('/character/log', LogViewStream);
 app.get('/character/errors', CharacterLogErrors);
 // To test notification messages
 app.get('/character/errors-notify', CharacterNotifyErrors);
+// Get post
+app.get('/character/log/posts', CharacterPosts);
 // Create character
 app.post('/character', CreateCharacter);
 // Update character
@@ -124,6 +126,7 @@ async function autoCharacterNotifyErrors() {
         while (true) {
             try {
                 // await CharacterNotifyErrors({ query: { character: 'picklepal', needNotifyErrorsByBotNotifier, time_ago: 9999999, errmsg_keeplength, errmsg_maxlength } });
+                // await CharacterNotifyErrors({ query: { needNotifyErrorsByBotNotifier, errmsg_keeplength, errmsg_maxlength } });
                 await CharacterNotifyErrors({ query: { character: 'picklepal', needNotifyErrorsByBotNotifier, errmsg_keeplength, errmsg_maxlength } });
             const appData = ReadJsonFile(appDataFile);
             appData.notifyLastTime = new Date().toISOString();
@@ -443,6 +446,42 @@ async function CharacterLogErrors(request, response) {
     }
 }
 
+async function CharacterPosts(request, response) {
+    try {
+        const { query: { character, reverse, errmsg_keeplength, errmsg_maxlength } } = request;
+        // In minutes
+        const errMsgKeepLength = errmsg_keeplength || 1200;
+        const errMsgMaxLength = errmsg_maxlength || 5000;
+        const reverseLog = !(reverse === '0' || reverse === 'false');
+        let runningProcesses = await ReadRunningProcessesPm2();
+        if (character) {
+            runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
+            if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
+        }
+        const data = [];
+        for (const runningCharacter of runningProcesses) {
+            const logPath = runningCharacter.log_file;
+            if (fs.existsSync(logPath)) {
+                let characterLogsData = await LogPosts(logPath, errMsgKeepLength, errMsgMaxLength);
+                if (reverseLog) characterLogsData.reverse();
+                data.push({
+                    character: runningCharacter.name,
+                    data: characterLogsData
+                })
+            } else throw new Error(`Lof file not found: ${logPath}`);
+        }
+        if (character) {
+            response.json({ status: true, data: data[0].data });
+        } else response.json({ status: true, characters: errors });
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
+
+
 async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
     const errorBlocks = [];
     let errorBlock = [];
@@ -489,6 +528,41 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
         }
     }
     return errorBlocks;
+}
+
+async function LogPosts(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
+    const blocks = [];
+    let block = [];
+    let isBlock = false;
+    let skipErrorBlock = false;
+    const fileStream = fs.createReadStream(logFile, { encoding: 'utf8' });
+    // Use readline to process the file line-by-line
+    const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity // Handles different newline formats
+    });
+    for await (const line of rl) {
+        // 'ERRORS' block start
+        if (line.includes('Posting new tweet:')) {
+            block.push(clearContent(line, keepLength, maxLength));
+            isBlock = true;
+            continue;
+        }
+        // Collect lines in the current 'ERRORS' block
+        if (isBlock) {
+            const logEvents = ['Tweet posted:'];
+            if (logEvents.some(logEvent => line.includes(logEvent))) {
+                // End of current 'ERRORS' block
+                block.push(clearContent(line, keepLength, maxLength));
+                blocks.push(block);
+                block = [];
+                isBlock = false;
+            } else {
+                block.push(clearContent(line, keepLength, maxLength));
+            }
+        }
+    }
+    return blocks;
 }
 
 function trimMiddleContent(bigString, keepLength, maxLength) {
