@@ -1944,6 +1944,10 @@ importers:
       whatwg-url:
         specifier: 7.1.0
         version: 7.1.0
+      '@biomejs/biome':
+          specifier: 1.9.4
+          version: 1.9.4
+
 
   packages/plugin-arbitrage:
     dependencies:
