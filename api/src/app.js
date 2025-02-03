@@ -368,12 +368,12 @@ async function LogViewStream(request, response) {
                 response.setHeader('Transfer-Encoding', 'chunked');
                 response.write('{"status":true,"view":[');
                 let isFirstChunk = true;
+                const ansiRegex = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
                 rl.on('line', (line) => {
-                    if (!isFirstChunk) {
-                        response.write(',');
-                    }
+                    if (!isFirstChunk) response.write(',');
                     isFirstChunk = false;
-                    response.write(JSON.stringify(line));
+                    const cleanLine = line.replace(ansiRegex, '');
+                    response.write(JSON.stringify(cleanLine));
                 });
 
                 rl.on('close', () => {
@@ -418,12 +418,13 @@ async function CharacterLogErrors(request, response) {
                         let date = null;
                         if (typeof error === 'string') {
                             // Extract timestamp for string errors
-                            const match = error.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
-                            date = match ? new Date(match[0]) : null;
+                            const match = error.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/);
+                            date = match ? new Date(`${match[1]}T${match[2]}Z`) : null;
                         } else if (Array.isArray(error)) {
                             // Extract timestamp for array errors
-                            const match = error.find(item => /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(item));
-                            date = match ? new Date(match.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)[0]) : null;
+                            const matchFind = error.find(item => /\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/.test(item));
+                            const match = matchFind.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/);
+                            date = match ? new Date(`${match[1]}T${match[2]}Z`) : null;
                         }
                         // Check if date is valid and within the last 60 minutes
                         return date && (Date.now() - date.getTime() <= timeAgo * 60 * 1000);
@@ -445,6 +446,60 @@ async function CharacterLogErrors(request, response) {
         });
     }
 }
+
+// async function CharacterLogErrors(request, response) {
+//     try {
+//         const { query: { character, skipUnimpErrors, reverse, time_ago, errmsg_keeplength, errmsg_maxlength } } = request;
+//         const skipUnimportantErrors = skipUnimpErrors === 'true' || skipUnimpErrors === '1' || false;
+//         // In minutes
+//         const timeAgo = time_ago;
+//         const errMsgKeepLength = errmsg_keeplength || 1200;
+//         const errMsgMaxLength = errmsg_maxlength || 5000;
+//         const reverseErrors = !(reverse === '0' || reverse === 'false');
+//         let runningProcesses = await ReadRunningProcessesPm2();
+//         if (character) {
+//             runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
+//             if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
+//         }
+//         const errors = [];
+//         for (const runningCharacter of runningProcesses) {
+//             const logPath = runningCharacter.log_file;
+//             if (fs.existsSync(logPath)) {
+//                 let characterErrors = await LogErrors(logPath, errMsgKeepLength, errMsgMaxLength, skipUnimportantErrors);
+//                 console.log('characterErrors', characterErrors);
+//                 if (reverseErrors) characterErrors.reverse();
+//                 if (timeAgo) {
+//                     characterErrors = characterErrors.filter((error) => {
+//                         let date = null;
+//                         if (typeof error === 'string') {
+//                             // Extract timestamp for string errors
+//                             const match = error.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
+//                             date = match ? new Date(match[0]) : null;
+//                         } else if (Array.isArray(error)) {
+//                             // Extract timestamp for array errors
+//                             const match = error.find(item => /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(item));
+//                             date = match ? new Date(match.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)[0]) : null;
+//                         }
+//                         // Check if date is valid and within the last 60 minutes
+//                         return date && (Date.now() - date.getTime() <= timeAgo * 60 * 1000);
+//                     });
+//                 }
+//                 errors.push({
+//                     character: runningCharacter.name,
+//                     errors: characterErrors
+//                 })
+//             } else throw new Error(`Log file not found: ${logPath}`);
+//         }
+//         if (character) {
+//             response.json({ status: true, errors: errors[0].errors });
+//         } else response.json({ status: true, characters: errors });
+//     } catch (error) {
+//         response.status(400).json({
+//             status: false,
+//             error: error.message,
+//         });
+//     }
+// }
 
 async function CharacterPosts(request, response) {
     try {
@@ -494,11 +549,11 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
         crlfDelay: Infinity // Handles different newline formats
     });
     for await (const line of rl) {
-        // 'ERRORS' block start
-        if (line.includes('ERRORS')) {
-            // If after 'ERRORS' goes next 'ERRORS'
+        // 'ERROR' block start
+        if (line.includes('31mERROR')) {
+            // If after 'ERROR' goes next 'ERROR'
             if (isErrorBlock) {
-                if (!skipErrorBlock) errorBlocks.push(errorBlock);
+                if (!skipErrorBlock) errorBlocks.push(errorBlock.length === 1 ? errorBlock[0] : errorBlock);
                 errorBlock = [];
             }
             errorBlock.push(clearContent(line, keepLength, maxLength));
@@ -506,16 +561,12 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
             skipErrorBlock = false;
             continue;
         }
-        // if just one string
-        if (line.includes('⛔') && !isErrorBlock) {
-            errorBlocks.push(clearContent(line, keepLength, maxLength));
-        }
-        // Collect lines in the current 'ERRORS' block
+        // Collect lines in the current 'ERROR' block
         if (isErrorBlock) {
-            const logEvents = ['LOGS', 'WARNINGS', 'INFORMATIONS', 'SUCCESS', 'DEBUG', 'ASSERT'];
+            const logEvents = ['WARN', 'INFO', 'LOG', 'PROGRESS', 'SUCCESS', 'DEBUG', 'TRACE', 'FATAL'];
             if (line === '' || logEvents.some(logEvent => line.includes(logEvent))) {
                 // End of current 'ERRORS' block
-                if (!skipErrorBlock) errorBlocks.push(errorBlock);
+                if (!skipErrorBlock) errorBlocks.push(errorBlock.length === 1 ? errorBlock[0] : errorBlock);
                 errorBlock = [];
                 isErrorBlock = false;
             } else {
@@ -529,6 +580,53 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
     }
     return errorBlocks;
 }
+// async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
+//     const errorBlocks = [];
+//     let errorBlock = [];
+//     let isErrorBlock = false;
+//     let skipErrorBlock = false;
+//     const fileStream = fs.createReadStream(logFile, { encoding: 'utf8' });
+//     // Use readline to process the file line-by-line
+//     const rl = readline.createInterface({
+//         input: fileStream,
+//         crlfDelay: Infinity // Handles different newline formats
+//     });
+//     for await (const line of rl) {
+//         // 'ERRORS' block start
+//         if (line.includes('ERRORS')) {
+//             // If after 'ERRORS' goes next 'ERRORS'
+//             if (isErrorBlock) {
+//                 if (!skipErrorBlock) errorBlocks.push(errorBlock);
+//                 errorBlock = [];
+//             }
+//             errorBlock.push(clearContent(line, keepLength, maxLength));
+//             isErrorBlock = true;
+//             skipErrorBlock = false;
+//             continue;
+//         }
+//         // if just one string
+//         if (line.includes('⛔') && !isErrorBlock) {
+//             errorBlocks.push(clearContent(line, keepLength, maxLength));
+//         }
+//         // Collect lines in the current 'ERRORS' block
+//         if (isErrorBlock) {
+//             const logEvents = ['LOGS', 'WARNINGS', 'INFORMATIONS', 'SUCCESS', 'DEBUG', 'ASSERT'];
+//             if (line === '' || logEvents.some(logEvent => line.includes(logEvent))) {
+//                 // End of current 'ERRORS' block
+//                 if (!skipErrorBlock) errorBlocks.push(errorBlock);
+//                 errorBlock = [];
+//                 isErrorBlock = false;
+//             } else {
+//                 if (skipUnimportantErrors) {
+//                     const skipErrors = ['OpenAI API error:', 'OpenAI request failed', 'Error in recognizeWithOpenAI:', 'Error in handleTextOnlyReply:', 'Error in quote tweet generation:'];
+//                     if (skipErrors.some(skipError => line.includes(skipError))) skipErrorBlock = true;
+//                 }
+//                 errorBlock.push(clearContent(line, keepLength, maxLength));
+//             }
+//         }
+//     }
+//     return errorBlocks;
+// }
 
 async function LogPosts(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
     const blocks = [];
@@ -574,9 +672,10 @@ function trimMiddleContent(bigString, keepLength, maxLength) {
 }
 
 function clearContent(line, keepLength, maxLength) {
-    let clearContent = line.replace(/\x1b\[30m|\x1b\[31m|\x1b\[32m|\x1b\[33m|\x1b\[34m|\x1b\[35m|\x1b\[36m|\x1b\[37m|\x1b\[40m|\x1b\[43m|\x1b\[44m|\x1b\[45m|\x1b\[46m|\x1b\[47m|\x1b\[0m/g, "").trim();
-    clearContent = trimMiddleContent(clearContent, keepLength, maxLength);
-    return clearContent;
+    const ansiRegex = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+    let cleanLine = line.replace(ansiRegex, '');
+    cleanLine = trimMiddleContent(cleanLine, keepLength, maxLength);
+    return cleanLine;
 }
 
 // Read running processes from pm2
