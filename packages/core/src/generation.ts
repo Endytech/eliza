@@ -1056,7 +1056,7 @@ export async function generateText({
                     model: atoma.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -1180,7 +1180,7 @@ export async function generateText({
                     model: nvidia.languageModel(model),
                     prompt: context,
                     system:
-                        runtime.character.system ??
+                        systemCharacterPrompt ??
                         settings.SYSTEM_PROMPT ??
                         undefined,
                     tools: tools,
@@ -1239,7 +1239,7 @@ export async function generateText({
                         {
                             role: "system",
                             content:
-                                runtime.character.system ??
+                                systemCharacterPrompt ??
                                 settings.SYSTEM_PROMPT ??
                                 "You are a helpful assistant",
                         },
