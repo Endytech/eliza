@@ -1898,7 +1898,19 @@ importers:
       ai-agent-sdk-js:
         specifier: ^0.0.2
         version: 0.0.2(bufferutil@4.0.9)(typescript@5.7.3)(utf-8-validate@6.0.5)
+      '@ethersproject/contracts':
+        specifier: ^5.7.0
+        version: ^5.7.0
+      '@ethersproject/providers':
+        specifier: ^5.7.0
+        version: ^5.7.0
+      ethers:
+        specifier: ^5.7.2
+        version: ^5.7.2(bufferutil@4.0.9)(utf-8-validate@5.0.10)
     devDependencies:
+      '@biomejs/biome':
+        specifier: 1.9.4
+        version: 1.9.4
       tsup:
         specifier: 8.3.5
         version: 8.3.5(@swc/core@1.10.12(@swc/helpers@0.5.15))(jiti@2.4.2)(postcss@8.5.1)(tsx@4.19.2)(typescript@5.7.3)(yaml@2.7.0)
