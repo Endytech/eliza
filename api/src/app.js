@@ -83,7 +83,7 @@ async function CharacterNotifyErrors(request, response) {
                     await new Promise((resolve) => setTimeout(resolve,  2000));
                     await sendToBotNotifier(`_____________________\nCharacter: ${runningCharacter.name}\n\n${characterErrors.join('\n\n')}`);
                 }
-            } else throw new Error(`Lof file not found: ${logPath}`);
+            } else throw new Error(`Log file not found: ${logPath}`);
         }
         // Notify about total errors for each character
         for (const errorItem of errors) {
@@ -383,7 +383,7 @@ async function LogViewStream(request, response) {
                 rl.on('error', (error) => {
                     throw new Error(`Error reading log file: ${error.message}`);
                 });
-            } else throw new Error(`Lof file not found: ${logPath}`);
+            } else throw new Error(`Log file not found: ${logPath}`);
         } else throw new Error(`Character not found in running processes`);
     } catch (error) {
         response.status(400).json({
@@ -433,7 +433,7 @@ async function CharacterLogErrors(request, response) {
                     character: runningCharacter.name,
                     errors: characterErrors
                 })
-            } else throw new Error(`Lof file not found: ${logPath}`);
+            } else throw new Error(`Log file not found: ${logPath}`);
         }
         if (character) {
             response.json({ status: true, errors: errors[0].errors });
@@ -468,7 +468,7 @@ async function CharacterPosts(request, response) {
                     character: runningCharacter.name,
                     data: characterLogsData
                 })
-            } else throw new Error(`Lof file not found: ${logPath}`);
+            } else throw new Error(`Log file not found: ${logPath}`);
         }
         if (character) {
             response.json({ status: true, data: data[0].data });
