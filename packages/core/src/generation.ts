@@ -1169,31 +1169,31 @@ export async function generateText({
                 break;
             }
 
-            // case ModelProviderName.NVIDIA: {
-            //     elizaLogger.debug("Initializing NVIDIA model.");
-            //     const nvidia = createOpenAI({
-            //         apiKey: apiKey,
-            //         baseURL: endpoint,
-            //     });
-            //
-            //     const { text: nvidiaResponse } = await aiGenerateText({
-            //         model: nvidia.languageModel(model),
-            //         prompt: context,
-            //         system:
-            //             systemCharacterPrompt ??
-            //             settings.SYSTEM_PROMPT ??
-            //             undefined,
-            //         tools: tools,
-            //         onStepFinish: onStepFinish,
-            //         temperature: temperature,
-            //         maxSteps: maxSteps,
-            //         maxTokens: max_response_length,
-            //     });
-            //
-            //     response = nvidiaResponse;
-            //     elizaLogger.debug("Received response from NVIDIA model.");
-            //     break;
-            // }
+            case ModelProviderName.NVIDIA: {
+                elizaLogger.debug("Initializing NVIDIA model.");
+                const nvidia = createOpenAI({
+                    apiKey: apiKey,
+                    baseURL: endpoint,
+                });
+
+                const { text: nvidiaResponse } = await aiGenerateText({
+                    model: nvidia.languageModel(model),
+                    prompt: context,
+                    system:
+                        systemCharacterPrompt ??
+                        settings.SYSTEM_PROMPT ??
+                        undefined,
+                    tools: tools,
+                    onStepFinish: onStepFinish,
+                    temperature: temperature,
+                    maxSteps: maxSteps,
+                    maxTokens: max_response_length,
+                });
+
+                response = nvidiaResponse;
+                elizaLogger.debug("Received response from NVIDIA model.");
+                break;
+            }
 
             case ModelProviderName.DEEPSEEK: {
                 elizaLogger.debug("Initializing Deepseek model.");
