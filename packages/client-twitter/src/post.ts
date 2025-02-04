@@ -760,13 +760,14 @@ export class TwitterPostClient {
 
         // First clean up any markdown and newlines
         const cleanedResponse = cleanJsonResponse(response);
+        const maxTweetLength = DEFAULT_MAX_TWEET_LENGTH;
 
         // Try to parse as JSON first
         const jsonResponse = parseJSONObjectFromText(cleanedResponse);
         if (jsonResponse.text) {
             const truncateContent = truncateToCompleteSentence(
                 jsonResponse.text,
-                this.client.twitterConfig.MAX_TWEET_LENGTH
+                maxTweetLength
             );
             return truncateContent;
         }
@@ -778,7 +779,7 @@ export class TwitterPostClient {
             if (possibleContent) {
                 const truncateContent = truncateToCompleteSentence(
                     possibleContent,
-                    this.client.twitterConfig.MAX_TWEET_LENGTH
+                    maxTweetLength
                 );
                 return truncateContent;
             }
@@ -790,7 +791,7 @@ export class TwitterPostClient {
         if (parsingText) {
             truncateContent = truncateToCompleteSentence(
                 parsingText,
-                this.client.twitterConfig.MAX_TWEET_LENGTH
+                maxTweetLength
             );
         }
 
@@ -798,7 +799,7 @@ export class TwitterPostClient {
             // If not JSON or no valid content found, clean the raw text
             truncateContent = truncateToCompleteSentence(
                 cleanedResponse,
-                this.client.twitterConfig.MAX_TWEET_LENGTH
+                maxTweetLength
             );
         }
 
