@@ -94,7 +94,7 @@ async function CharacterLogErrors(request, response) {
             await new Promise((resolve) => setTimeout(resolve,  5000));
             await sendToBotNotifier(totalErrors.join("\n"));
         }
-        if (response){
+        if (response) {
             if (character) {
                 response.json({ status: true, errors: errors[0].errors });
             } else {
@@ -102,10 +102,14 @@ async function CharacterLogErrors(request, response) {
             }
         }
     } catch (error) {
-        response.status(400).json({
-            status: false,
-            error: error.message,
-        });
+        if (response) {
+            response.status(400).json({
+                status: false,
+                error: error.message,
+            });
+        } else {
+            console.error(`${new Date().toISOString()}. Error: ${error}`);
+        }
     }
 }
 
