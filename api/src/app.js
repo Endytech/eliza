@@ -108,7 +108,7 @@ async function CharacterLogErrors(request, response) {
                 error: error.message,
             });
         } else {
-            console.error(`${new Date().toISOString()}. Error: ${error}`);
+            console.error(`${new Date().toISOString()}. ${error}`);
         }
     }
 }
