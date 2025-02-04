@@ -1478,13 +1478,15 @@ const startAgents = async () => {
 
     if (process.env.IQ_WALLET_ADDRESS && process.env.IQSOlRPC) {
         characters = await loadCharacterFromOnchain();
-    }
-
-    const notOnchainJson = !onchainJson || onchainJson == "null";
-
-    if ((notOnchainJson && charactersArg) || hasValidRemoteUrls()) {
+    } else if (charactersArg || hasValidRemoteUrls()) {
         characters = await loadCharacters(charactersArg);
     }
+
+    // const notOnchainJson = !onchainJson || onchainJson == "null";
+
+    // if ((notOnchainJson && charactersArg) || hasValidRemoteUrls()) {
+    //     characters = await loadCharacters(charactersArg);
+    // }
 
     // Normalize characters for injectable plugins
     characters = await Promise.all(characters.map(normalizeCharacter));

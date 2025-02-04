@@ -5,8 +5,8 @@ module.exports = {
     notifyPeriod: 60, // Minutes
     brnHost: 'https://api.brn.ai',
     brnAccessToken: '',
-    botNotifierId:'',
-    needNotifyErrorsByBotNotifier: false,
+    botNotifierId: '',
+    notifyErrors: false,
     errMsgKeeplength: 1200,
-    errMsgMaxlength: 5000
+    errMsgMaxlength: 5000,
 };

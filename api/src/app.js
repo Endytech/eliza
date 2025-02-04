@@ -28,8 +28,6 @@ app.get('/character/runlist', RunList);
 app.get('/character/log', LogViewStream);
 // View character log errors
 app.get('/character/errors', CharacterLogErrors);
-// To test notification messages
-app.get('/character/errors-notify', CharacterNotifyErrors);
 // Get post
 app.get('/character/log/posts', CharacterPosts);
 // Create character
@@ -43,57 +41,59 @@ app.get('/characters', CharacterList);
 // Get Character
 app.get('/character', CharacterView);
 
-
-async function CharacterNotifyErrors(request, response) {
+async function CharacterLogErrors(request, response) {
     try {
-        const { query: { character, needNotifyErrorsByBotNotifier, time_ago, errmsg_keeplength, errmsg_maxlength } } = request;
-        const { notifyPeriod } = common_config;
+        const { query: { character, notify_errors, time_ago, errmsg_keeplength, errmsg_maxlength, reverse, skipUnimpErrors } } = request;
+        const skipUnimportantErrors = skipUnimpErrors === 'true' || skipUnimpErrors === '1' || false;
         // In minutes
-        const time = time_ago || notifyPeriod || 60;
+        const timeAgo = time_ago;
         const errMsgKeepLength = errmsg_keeplength || 1200;
         const errMsgMaxLength = errmsg_maxlength || 5000;
+        const reverseErrors = !(reverse === '0' || reverse === 'false');
         let runningProcesses = await ReadRunningProcessesPm2();
-        if (character) runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
+        if (character) {
+            runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
+            if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
+        }
         const errors = [];
-        const totalErrors = []
+        const totalErrors = [];
         for (const runningCharacter of runningProcesses) {
             const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
-                let characterErrors = await LogErrors(logPath, errMsgKeepLength, errMsgMaxLength);
-                characterErrors.reverse();
-                characterErrors = characterErrors.filter((error) => {
-                    let date = null;
-                    if (typeof error === 'string') {
-                        // Extract timestamp for string errors
-                        const match = error.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
-                        date = match ? new Date(match[0]) : null;
-                    } else if (Array.isArray(error)) {
-                        // Extract timestamp for array errors
-                        const match = error.find(item => /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(item));
-                        date = match ? new Date(match.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)[0]) : null;
-                    }
-                    // Check if date is valid and within the last 60 minutes
-                    return date && (Date.now() - date.getTime() <= time * 60 * 1000);
-                });
+                let characterErrors = await LogErrors(logPath, errMsgKeepLength, errMsgMaxLength, skipUnimportantErrors);
+                if (reverseErrors) characterErrors.reverse();
+                if (timeAgo) {
+                    characterErrors = characterErrors.filter((error) => {
+                        let date = null;
+                        if (typeof error === 'string') {
+                            // Extract timestamp for string errors
+                            const match = error.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/);
+                            date = match ? new Date(`${match[1]}T${match[2]}Z`) : null;
+                        } else if (Array.isArray(error)) {
+                            // Extract timestamp for array errors
+                            const matchFind = error.find(item => /\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/.test(item));
+                            const match = matchFind.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/);
+                            date = match ? new Date(`${match[1]}T${match[2]}Z`) : null;
+                        }
+                        // Check if date is valid and within the last 60 minutes
+                        return date && (Date.now() - date.getTime() <= timeAgo * 60 * 1000);
+                    });
+                }
                 errors.push({
                     character: runningCharacter.name,
                     errors: characterErrors
                 })
-                if (needNotifyErrorsByBotNotifier && characterErrors.length > 0) {
+                if (notify_errors && characterErrors.length > 0) {
                     await new Promise((resolve) => setTimeout(resolve,  2000));
                     await sendToBotNotifier(`_____________________\nCharacter: ${runningCharacter.name}\n\n${characterErrors.join('\n\n')}`);
                 }
+                if (characterErrors.length > 0) totalErrors.push(`Character: ${runningCharacter.name}\nTotal errors count: ${characterErrors.length}\n_____________________`);
             } else throw new Error(`Log file not found: ${logPath}`);
         }
-        // Notify about total errors for each character
-        for (const errorItem of errors) {
-            if (errorItem.errors.length > 0) totalErrors.push(`Character: ${errorItem.character}\nTotal errors count: ${errorItem.errors.length}\n_____________________`);
-        }
-        if (needNotifyErrorsByBotNotifier && totalErrors.length > 0) {
+        if (notify_errors && totalErrors.length > 0) {
             await new Promise((resolve) => setTimeout(resolve,  5000));
             await sendToBotNotifier(totalErrors.join("\n"));
         }
-
         if (response){
             if (character) {
                 response.json({ status: true, errors: errors[0].errors });
@@ -102,14 +102,17 @@ async function CharacterNotifyErrors(request, response) {
             }
         }
     } catch (error) {
-        throw new Error(`Error get error log in notify loop: ${error.message}`);
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
     }
 }
 
 async function autoCharacterNotifyErrors() {
-    let { notifyPeriod, needNotifyErrorsByBotNotifier, errMsgKeeplength: errmsg_keeplength, errMsgMaxlength: errmsg_maxlength, appDataFile } = common_config;
+    let { notifyPeriod, notifyErrors, errMsgKeeplength, errMsgMaxlength, appDataFile } = common_config;
     notifyPeriod = notifyPeriod || 60;
-    if (needNotifyErrorsByBotNotifier) {
+    if (notifyErrors) {
         try {
             const appData = ReadJsonFile(appDataFile);
             if (appData?.notifyLastTime) {
@@ -125,9 +128,9 @@ async function autoCharacterNotifyErrors() {
         }
         while (true) {
             try {
-                // await CharacterNotifyErrors({ query: { character: 'picklepal', needNotifyErrorsByBotNotifier, time_ago: 9999999, errmsg_keeplength, errmsg_maxlength } });
-                // await CharacterNotifyErrors({ query: { needNotifyErrorsByBotNotifier, errmsg_keeplength, errmsg_maxlength } });
-                await CharacterNotifyErrors({ query: { character: 'picklepal', needNotifyErrorsByBotNotifier, errmsg_keeplength, errmsg_maxlength } });
+                // await CharacterNotifyErrors({ query: { character: 'picklepal', notify_errors: notifyErrors, time_ago: 9999999, errmsg_keeplength, errmsg_maxlength } });
+                // await CharacterNotifyErrors({ query: { notify_errors: notifyErrors, errmsg_keeplength, errmsg_maxlength } });
+                await CharacterLogErrors({ query: { character: 'picklepal', notify_errors: notifyErrors, time_ago: notifyPeriod,  errmsg_keeplength: errMsgKeeplength, errmsg_maxlength: errMsgMaxlength } });
             const appData = ReadJsonFile(appDataFile);
             appData.notifyLastTime = new Date().toISOString();
             WriteJsonFile(appDataFile, appData);
@@ -393,114 +396,6 @@ async function LogViewStream(request, response) {
     }
 }
 
-async function CharacterLogErrors(request, response) {
-    try {
-        const { query: { character, skipUnimpErrors, reverse, time_ago, errmsg_keeplength, errmsg_maxlength } } = request;
-        const skipUnimportantErrors = skipUnimpErrors === 'true' || skipUnimpErrors === '1' || false;
-        // In minutes
-        const timeAgo = time_ago;
-        const errMsgKeepLength = errmsg_keeplength || 1200;
-        const errMsgMaxLength = errmsg_maxlength || 5000;
-        const reverseErrors = !(reverse === '0' || reverse === 'false');
-        let runningProcesses = await ReadRunningProcessesPm2();
-        if (character) {
-            runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
-            if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
-        }
-        const errors = [];
-        for (const runningCharacter of runningProcesses) {
-            const logPath = runningCharacter.log_file;
-            if (fs.existsSync(logPath)) {
-                let characterErrors = await LogErrors(logPath, errMsgKeepLength, errMsgMaxLength, skipUnimportantErrors);
-                if (reverseErrors) characterErrors.reverse();
-                if (timeAgo) {
-                    characterErrors = characterErrors.filter((error) => {
-                        let date = null;
-                        if (typeof error === 'string') {
-                            // Extract timestamp for string errors
-                            const match = error.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/);
-                            date = match ? new Date(`${match[1]}T${match[2]}Z`) : null;
-                        } else if (Array.isArray(error)) {
-                            // Extract timestamp for array errors
-                            const matchFind = error.find(item => /\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/.test(item));
-                            const match = matchFind.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/);
-                            date = match ? new Date(`${match[1]}T${match[2]}Z`) : null;
-                        }
-                        // Check if date is valid and within the last 60 minutes
-                        return date && (Date.now() - date.getTime() <= timeAgo * 60 * 1000);
-                    });
-                }
-                errors.push({
-                    character: runningCharacter.name,
-                    errors: characterErrors
-                })
-            } else throw new Error(`Log file not found: ${logPath}`);
-        }
-        if (character) {
-            response.json({ status: true, errors: errors[0].errors });
-        } else response.json({ status: true, characters: errors });
-    } catch (error) {
-        response.status(400).json({
-            status: false,
-            error: error.message,
-        });
-    }
-}
-
-// async function CharacterLogErrors(request, response) {
-//     try {
-//         const { query: { character, skipUnimpErrors, reverse, time_ago, errmsg_keeplength, errmsg_maxlength } } = request;
-//         const skipUnimportantErrors = skipUnimpErrors === 'true' || skipUnimpErrors === '1' || false;
-//         // In minutes
-//         const timeAgo = time_ago;
-//         const errMsgKeepLength = errmsg_keeplength || 1200;
-//         const errMsgMaxLength = errmsg_maxlength || 5000;
-//         const reverseErrors = !(reverse === '0' || reverse === 'false');
-//         let runningProcesses = await ReadRunningProcessesPm2();
-//         if (character) {
-//             runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
-//             if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
-//         }
-//         const errors = [];
-//         for (const runningCharacter of runningProcesses) {
-//             const logPath = runningCharacter.log_file;
-//             if (fs.existsSync(logPath)) {
-//                 let characterErrors = await LogErrors(logPath, errMsgKeepLength, errMsgMaxLength, skipUnimportantErrors);
-//                 console.log('characterErrors', characterErrors);
-//                 if (reverseErrors) characterErrors.reverse();
-//                 if (timeAgo) {
-//                     characterErrors = characterErrors.filter((error) => {
-//                         let date = null;
-//                         if (typeof error === 'string') {
-//                             // Extract timestamp for string errors
-//                             const match = error.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/);
-//                             date = match ? new Date(match[0]) : null;
-//                         } else if (Array.isArray(error)) {
-//                             // Extract timestamp for array errors
-//                             const match = error.find(item => /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/.test(item));
-//                             date = match ? new Date(match.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z/)[0]) : null;
-//                         }
-//                         // Check if date is valid and within the last 60 minutes
-//                         return date && (Date.now() - date.getTime() <= timeAgo * 60 * 1000);
-//                     });
-//                 }
-//                 errors.push({
-//                     character: runningCharacter.name,
-//                     errors: characterErrors
-//                 })
-//             } else throw new Error(`Log file not found: ${logPath}`);
-//         }
-//         if (character) {
-//             response.json({ status: true, errors: errors[0].errors });
-//         } else response.json({ status: true, characters: errors });
-//     } catch (error) {
-//         response.status(400).json({
-//             status: false,
-//             error: error.message,
-//         });
-//     }
-// }
-
 async function CharacterPosts(request, response) {
     try {
         const { query: { character, reverse, errmsg_keeplength, errmsg_maxlength } } = request;
@@ -580,53 +475,6 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
     }
     return errorBlocks;
 }
-// async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
-//     const errorBlocks = [];
-//     let errorBlock = [];
-//     let isErrorBlock = false;
-//     let skipErrorBlock = false;
-//     const fileStream = fs.createReadStream(logFile, { encoding: 'utf8' });
-//     // Use readline to process the file line-by-line
-//     const rl = readline.createInterface({
-//         input: fileStream,
-//         crlfDelay: Infinity // Handles different newline formats
-//     });
-//     for await (const line of rl) {
-//         // 'ERRORS' block start
-//         if (line.includes('ERRORS')) {
-//             // If after 'ERRORS' goes next 'ERRORS'
-//             if (isErrorBlock) {
-//                 if (!skipErrorBlock) errorBlocks.push(errorBlock);
-//                 errorBlock = [];
-//             }
-//             errorBlock.push(clearContent(line, keepLength, maxLength));
-//             isErrorBlock = true;
-//             skipErrorBlock = false;
-//             continue;
-//         }
-//         // if just one string
-//         if (line.includes('⛔') && !isErrorBlock) {
-//             errorBlocks.push(clearContent(line, keepLength, maxLength));
-//         }
-//         // Collect lines in the current 'ERRORS' block
-//         if (isErrorBlock) {
-//             const logEvents = ['LOGS', 'WARNINGS', 'INFORMATIONS', 'SUCCESS', 'DEBUG', 'ASSERT'];
-//             if (line === '' || logEvents.some(logEvent => line.includes(logEvent))) {
-//                 // End of current 'ERRORS' block
-//                 if (!skipErrorBlock) errorBlocks.push(errorBlock);
-//                 errorBlock = [];
-//                 isErrorBlock = false;
-//             } else {
-//                 if (skipUnimportantErrors) {
-//                     const skipErrors = ['OpenAI API error:', 'OpenAI request failed', 'Error in recognizeWithOpenAI:', 'Error in handleTextOnlyReply:', 'Error in quote tweet generation:'];
-//                     if (skipErrors.some(skipError => line.includes(skipError))) skipErrorBlock = true;
-//                 }
-//                 errorBlock.push(clearContent(line, keepLength, maxLength));
-//             }
-//         }
-//     }
-//     return errorBlocks;
-// }
 
 async function LogPosts(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
     const blocks = [];
