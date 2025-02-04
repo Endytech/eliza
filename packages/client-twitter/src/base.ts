@@ -298,7 +298,7 @@ export class ClientBase extends EventEmitter {
             }
 
             retries--;
-            elizaLogger.error(
+            elizaLogger.warn(
                 `Failed to login to Twitter. Retrying... (${retries} attempts left)`
             );
 
