@@ -112,7 +112,7 @@ runtime: IAgentRuntime
         if (result === '') throw new Error(`Get empty Brn News of all collections`);
         return { success: true, data: result };
     } catch (error) {
-        elizaLogger.error(`Get Brn News failed. Error - ${error}`);
+        elizaLogger.warn(`Get Brn News failed. Error - ${error}`);
         return { success: false, error: error };
     }
 }
