@@ -426,7 +426,7 @@ async function CharacterPosts(request, response) {
         }
         if (character) {
             response.json({ status: true, data: data[0].data });
-        } else response.json({ status: true, characters: errors });
+        } else response.json({ status: true, characters: data });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -492,17 +492,17 @@ async function LogPosts(logFile, keepLength = 1200, maxLength = 5000, skipUnimpo
         crlfDelay: Infinity // Handles different newline formats
     });
     for await (const line of rl) {
-        // 'ERRORS' block start
+        // Block start
         if (line.includes('Posting new tweet:')) {
             block.push(clearContent(line, keepLength, maxLength));
             isBlock = true;
             continue;
         }
-        // Collect lines in the current 'ERRORS' block
+        // Collect lines in the current block
         if (isBlock) {
             const logEvents = ['Tweet posted:'];
             if (logEvents.some(logEvent => line.includes(logEvent))) {
-                // End of current 'ERRORS' block
+                // End of current block
                 block.push(clearContent(line, keepLength, maxLength));
                 blocks.push(block);
                 block = [];
