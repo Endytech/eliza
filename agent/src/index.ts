@@ -25,7 +25,7 @@ import { agentKitPlugin } from "@elizaos/plugin-agentkit";
 import { gelatoPlugin } from "@elizaos/plugin-gelato";
 // import { PrimusAdapter } from "@elizaos/plugin-primus";
 import { lightningPlugin } from "@elizaos/plugin-lightning";
-// import { elizaCodeinPlugin, onchainJson } from "@elizaos/plugin-iq6900";
+import { elizaCodeinPlugin, onchainJson } from "@elizaos/plugin-iq6900";
 import { dcapPlugin } from "@elizaos/plugin-dcap";
 import {
     AgentRuntime,
@@ -1027,10 +1027,10 @@ export async function createAgent(
             )
                 ? emailAutomationPlugin
                 : null,
-            // getSecret(character, "IQ_WALLET_ADDRESS") &&
-            // getSecret(character, "IQSOlRPC")
-            //     ? elizaCodeinPlugin
-            //     : null,
+            getSecret(character, "IQ_WALLET_ADDRESS") &&
+            getSecret(character, "IQSOlRPC")
+                ? elizaCodeinPlugin
+                : null,
             bootstrapPlugin,
             getSecret(character, "CDP_API_KEY_NAME") &&
             getSecret(character, "CDP_API_KEY_PRIVATE_KEY") &&
@@ -1476,6 +1476,9 @@ const startAgents = async () => {
     const charactersArg = args.characters || args.character;
     let characters = [defaultCharacter];
 
+    // if (process.env.IQ_WALLET_ADDRESS && process.env.IQSOlRPC) {
+    //     characters = await loadCharacterFromOnchain();
+    // }
     if (process.env.IQ_WALLET_ADDRESS && process.env.IQSOlRPC) {
         characters = await loadCharacterFromOnchain();
     } else if (charactersArg || hasValidRemoteUrls()) {
@@ -1483,7 +1486,7 @@ const startAgents = async () => {
     }
 
     // const notOnchainJson = !onchainJson || onchainJson == "null";
-
+    //
     // if ((notOnchainJson && charactersArg) || hasValidRemoteUrls()) {
     //     characters = await loadCharacters(charactersArg);
     // }
