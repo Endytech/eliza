@@ -361,7 +361,7 @@ export class TwitterPostClient {
         await client.cacheTweet(tweet);
 
         // Log the posted tweet
-        elizaLogger.log(`Tweet posted:\n ${tweet.permanentUrl}`);
+        elizaLogger.log(`Tweet posted: ${tweet.permanentUrl}`);
 
         // Ensure the room and participant exist
         await runtime.ensureRoomExists(roomId);
@@ -457,8 +457,6 @@ export class TwitterPostClient {
         mediaData?: MediaData[]
     ) {
         try {
-            elizaLogger.log(`Posting new tweet:\n`);
-
             let result;
 
             if (tweetTextForPosting.length > DEFAULT_MAX_TWEET_LENGTH) {
@@ -715,7 +713,7 @@ export class TwitterPostClient {
                     elizaLogger.log("Tweet sent for approval");
                 } else {
                     elizaLogger.log(
-                        `Posting new tweet:\n ${tweetTextForPosting}`
+                        `Posting new tweet: ${tweetTextForPosting}`
                     );
                     this.postTweet(
                         this.runtime,
