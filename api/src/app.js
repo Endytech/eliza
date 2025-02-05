@@ -417,16 +417,20 @@ async function CharacterPosts(request, response) {
         for (const runningCharacter of runningProcesses) {
             const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
-                let characterLogsData = await LogPosts(logPath, postLimit, errMsgKeepLength, errMsgMaxLength);
-                if (reverseLog) characterLogsData.reverse();
+                let { blocks: characterLogsData, blocksJson: characterLogsJson } = await LogPosts(logPath, postLimit, errMsgKeepLength, errMsgMaxLength);
+                if (reverseLog) {
+                    characterLogsData.reverse();
+                    characterLogsJson.reverse();
+                }
                 data.push({
                     character: runningCharacter.name,
-                    data: characterLogsData
+                    data: characterLogsData,
+                    json: characterLogsJson
                 })
             } else throw new Error(`Log file not found: ${logPath}`);
         }
         if (character) {
-            response.json({ status: true, data: data[0].data });
+            response.json({ status: true, data: data[0].data, json: data[0].json  });
         } else response.json({ status: true, characters: data });
     } catch (error) {
         response.status(400).json({
@@ -456,7 +460,7 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
                 if (!skipErrorBlock) errorBlocks.push(errorBlock.length === 1 ? errorBlock[0] : errorBlock);
                 errorBlock = [];
             }
-            errorBlock.push(clearContent(line, keepLength, maxLength));
+            errorBlock.push(ClearContent(line, keepLength, maxLength));
             isErrorBlock = true;
             skipErrorBlock = false;
             continue;
@@ -474,7 +478,7 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
                     const skipErrors = ['OpenAI API error:', 'OpenAI request failed', 'Error in recognizeWithOpenAI:', 'Error in handleTextOnlyReply:', 'Error in quote tweet generation:'];
                     if (skipErrors.some(skipError => line.includes(skipError))) skipErrorBlock = true;
                 }
-                errorBlock.push(clearContent(line, keepLength, maxLength));
+                errorBlock.push(ClearContent(line, keepLength, maxLength));
             }
         }
     }
@@ -483,6 +487,8 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
 
 async function LogPosts(logFile, limit, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
     const blocks = [];
+    const blocksJson = [];
+    let blockJson = { date: null, text: null, url: null };
     let block = [];
     let isBlock = false;
     let skipErrorBlock = false;
@@ -495,7 +501,24 @@ async function LogPosts(logFile, limit, keepLength = 1200, maxLength = 5000, ski
     for await (const line of rl) {
         // Block start
         if (line.includes('Posting new tweet:')) {
-            block.push(clearContent(line, keepLength, maxLength));
+            const clearContent = ClearContent(line, keepLength, maxLength);
+            block.push(clearContent);
+
+            const match = clearContent.match(/Posting new tweet: (.*)/);
+            blockJson.text = match ? match[1] : null;
+
+            // // Extract the date and text
+            // const match = clear.match(/\[(.*?)\] LOG: Posting new tweet: (.*)/);
+            // if (match) {
+            //     const date = new Date(match[1]); // Parse the date string into a Date object
+            //     const text = match[2]; // Extract the tweet text
+            //
+            //     // Create the JSON object
+            //     const blockJson = {
+            //         date: date.toISOString(), // Convert date to ISO format
+            //         text: text
+            //     };
+
             isBlock = true;
             continue;
         }
@@ -504,20 +527,30 @@ async function LogPosts(logFile, limit, keepLength = 1200, maxLength = 5000, ski
             const logEvents = ['Tweet posted:'];
             if (logEvents.some(logEvent => line.includes(logEvent))) {
                 // End of current block
-                block.push(clearContent(line, keepLength, maxLength));
+                const clearContent = ClearContent(line, keepLength, maxLength);
+                block.push(clearContent);
+                let match = clearContent.match(/\[(\d{4}-\d{2}-\d{2}) (\d{2}:\d{2}:\d{2})]/);
+                blockJson.date = match ? new Date(`${match[1]}T${match[2]}Z`) : null;
+
+                match = clearContent.match(/Tweet posted: (.*)/);
+                blockJson.url = match ? match[1] : null;
+
                 blocks.push(block);
+                blocksJson.push(blockJson);
+
                 block = [];
+                blockJson = { date: null, text: null, url: null };
                 isBlock = false;
             } else {
-                block.push(clearContent(line, keepLength, maxLength));
+                block.push(ClearContent(line, keepLength, maxLength));
             }
         }
-        if (limit && blocks.length >= limit) return blocks;
+        if (limit && blocks.length >= limit) return { blocks, blocksJson };
     }
-    return blocks;
+    return { blocks, blocksJson };
 }
 
-function trimMiddleContent(bigString, keepLength, maxLength) {
+function TrimMiddleContent(bigString, keepLength, maxLength) {
     if (bigString.length <= maxLength) return bigString;
     const halfKeepLength = Math.floor(keepLength / 2);
     const startPart = bigString.slice(0, halfKeepLength); // Extract the beginning part
@@ -525,10 +558,10 @@ function trimMiddleContent(bigString, keepLength, maxLength) {
     return `${startPart}...[CONTENT REMOVED]...${endPart}`;
 }
 
-function clearContent(line, keepLength, maxLength) {
+function ClearContent(line, keepLength, maxLength) {
     const ansiRegex = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
     let cleanLine = line.replace(ansiRegex, '');
-    cleanLine = trimMiddleContent(cleanLine, keepLength, maxLength);
+    cleanLine = TrimMiddleContent(cleanLine, keepLength, maxLength);
     return cleanLine;
 }
 
