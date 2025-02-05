@@ -417,7 +417,7 @@ async function CharacterPosts(request, response) {
         for (const runningCharacter of runningProcesses) {
             const logPath = runningCharacter.log_file;
             if (fs.existsSync(logPath)) {
-                let characterLogsData = await LogPosts(logPath, errMsgKeepLength, errMsgMaxLength);
+                let characterLogsData = await LogPosts(logPath, postLimit, errMsgKeepLength, errMsgMaxLength);
                 if (reverseLog) characterLogsData.reverse();
                 data.push({
                     character: runningCharacter.name,
@@ -426,7 +426,7 @@ async function CharacterPosts(request, response) {
             } else throw new Error(`Log file not found: ${logPath}`);
         }
         if (character) {
-            response.json({ status: true, text: data[0].data });
+            response.json({ status: true, data: data[0].data });
         } else response.json({ status: true, characters: data });
     } catch (error) {
         response.status(400).json({
@@ -481,7 +481,7 @@ async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimp
     return errorBlocks;
 }
 
-async function LogPosts(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
+async function LogPosts(logFile, limit, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
     const blocks = [];
     let block = [];
     let isBlock = false;
@@ -512,6 +512,7 @@ async function LogPosts(logFile, keepLength = 1200, maxLength = 5000, skipUnimpo
                 block.push(clearContent(line, keepLength, maxLength));
             }
         }
+        if (limit && blocks.length >= limit) return blocks;
     }
     return blocks;
 }
