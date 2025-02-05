@@ -402,10 +402,11 @@ async function LogViewStream(request, response) {
 
 async function CharacterPosts(request, response) {
     try {
-        const { query: { character, reverse, errmsg_keeplength, errmsg_maxlength } } = request;
+        const { query: { character, limit, reverse, errmsg_keeplength, errmsg_maxlength } } = request;
         // In minutes
         const errMsgKeepLength = errmsg_keeplength || 1200;
         const errMsgMaxLength = errmsg_maxlength || 5000;
+        const postLimit = limit || 10;
         const reverseLog = !(reverse === '0' || reverse === 'false');
         let runningProcesses = await ReadRunningProcessesPm2();
         if (character) {
@@ -425,7 +426,7 @@ async function CharacterPosts(request, response) {
             } else throw new Error(`Log file not found: ${logPath}`);
         }
         if (character) {
-            response.json({ status: true, data: data[0].data });
+            response.json({ status: true, text: data[0].data });
         } else response.json({ status: true, characters: data });
     } catch (error) {
         response.status(400).json({
