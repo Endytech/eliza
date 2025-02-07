@@ -1133,9 +1133,7 @@ export class TwitterPostClient {
                             if (
                                 body?.data?.create_tweet?.tweet_results?.result
                             ) {
-                                elizaLogger.log(
-                                    "Successfully posted quote tweet"
-                                );
+                                elizaLogger.log(`Successfully posted quote tweet ${tweet.id}`);
                                 executedActions.push("quote");
 
                                 // Cache generation context for debugging
@@ -1165,6 +1163,7 @@ export class TwitterPostClient {
                             tweetState,
                             executedActions
                         );
+                        elizaLogger.log(`Successfully reply tweet ${tweet.id}`);
                     } catch (error) {
                         elizaLogger.error(
                             `Error replying to tweet ${tweet.id}:`,
