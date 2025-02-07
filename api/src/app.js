@@ -30,6 +30,8 @@ app.get('/character/log', LogViewStream);
 app.get('/character/errors', CharacterLogErrors);
 // Get post
 app.get('/character/log/posts', CharacterPosts);
+// Get post
+app.post('/character/message', CharacterMessage);
 // Create character
 app.post('/character', CreateCharacter);
 // Update character
@@ -50,7 +52,7 @@ async function CharacterLogErrors(request, response) {
         const errMsgKeepLength = errmsg_keeplength || 1200;
         const errMsgMaxLength = errmsg_maxlength || 5000;
         const reverseErrors = !(reverse === '0' || reverse === 'false');
-        let runningProcesses = await ReadRunningProcessesPm2();
+        let { characterProcesses: runningProcesses } = await ReadRunningProcessesPm2();
         if (character) {
             runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
             if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
@@ -165,10 +167,10 @@ async function StartCharacter(request, response) {
             fs.mkdirSync(logsDir);
         }
         // Check if character file does not exists
-        const existCharacters = await GetCharacterList();
+        const existCharacters = await GetCharacterFileList();
         if (!existCharacters.includes(character)) throw new Error(`Character ${character} does not exists`);
         // Check if process for this character is already running
-        const runningProcesses = await ReadRunningProcessesPm2();
+        const { characterProcesses: runningProcesses } = await ReadRunningProcessesPm2();
         const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
         // Connect to pm2
         await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err.message}`)) : resolve())));
@@ -214,7 +216,7 @@ async function StopCharacter(request, response) {
         const { query: { character } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
 
-        const runningProcesses = await ReadRunningProcessesPm2();
+        const { characterProcesses: runningProcesses } = await ReadRunningProcessesPm2();
         const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
         if (!runningCharacter) throw new Error(`No running process found for character: ${character}`);
         await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err.message}`)) : resolve())));
@@ -234,8 +236,8 @@ async function StopCharacter(request, response) {
 
 async function RunList(request, response) {
     try {
-        const list = await ReadRunningProcessesPm2();
-        response.json({ status: true,  characters: list });
+        const { characterProcesses } = await ReadRunningProcessesPm2();
+        response.json({ status: true,  characters: characterProcesses });
     } catch (error) {
         response.status(400).json({
             status: false,
@@ -249,7 +251,7 @@ async function CreateCharacter(request, response, update = false) {
         const {  query: { character }, body: { data } } = request;
         if (!data || typeof data !== 'object') throw new Error("Data must be a JSON object.");
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-        const existCharacters = await GetCharacterList();
+        const existCharacters = await GetCharacterFileList();
         if (existCharacters.includes(character)) throw new Error(`Character ${character} already exists`);
         const rootDir = path.resolve('../');
         const characterPath = path.join(rootDir, `characters/${character}.character.json`);
@@ -297,7 +299,7 @@ async function DeleteCharacter(request, response) {
             throw new Error(`Character file not found: ${characterPath}`);
         }
         await fs.unlinkSync(characterPath);
-        const runningProcesses = await ReadRunningProcessesPm2();
+        const { characterProcesses: runningProcesses } = await ReadRunningProcessesPm2();
         const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
         if (runningCharacter) {
             await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err.message}`)) : resolve())));
@@ -319,10 +321,10 @@ async function DeleteCharacter(request, response) {
 
 async function CharacterList(request, response) {
     try {
-        let characters = await GetCharacterList();
-        const runningCharacters = await ReadRunningProcessesPm2();
+        let characters = await GetCharacterFileList();
+        const { characterProcesses } = await ReadRunningProcessesPm2();
         characters = characters.map((character) => {
-            const runningCharacter = runningCharacters.find((runCharacter) => (runCharacter.name === character));
+            const runningCharacter = characterProcesses.find((runCharacter) => (runCharacter.name === character));
             return {
                 character: character,
                 ...(runningCharacter && { process: runningCharacter })
@@ -360,7 +362,7 @@ async function LogViewStream(request, response) {
     try{
         const { query: { character } } = request;
         if (!character || typeof character !== 'string') throw new Error("Character must be string.");
-        const runningProcesses = await ReadRunningProcessesPm2();
+        const { characterProcesses: runningProcesses } = await ReadRunningProcessesPm2();
         const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
         if (runningCharacter) {
             const logPath = runningCharacter.log_file;
@@ -408,7 +410,7 @@ async function CharacterPosts(request, response) {
         const errMsgMaxLength = errmsg_maxlength || 5000;
         const postLimit = limit || 10;
         const reverseLog = !(reverse === '0' || reverse === 'false');
-        let runningProcesses = await ReadRunningProcessesPm2();
+        let { characterProcesses: runningProcesses } = await ReadRunningProcessesPm2();
         if (character) {
             runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
             if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
@@ -440,6 +442,43 @@ async function CharacterPosts(request, response) {
     }
 }
 
+async function CharacterMessage(request, response) {
+    try {
+        const { character } = request.query;
+        const { message } = request.body;
+        let { characterProcesses: runningProcesses} = await ReadRunningProcessesPm2();
+        if (!character || typeof character !== 'string') throw new Error("Character must be string.");
+        let responseFetch = {};
+        const runningCharacter = runningProcesses.find((runCharacter) => (runCharacter.name === character));
+        if (runningCharacter) {
+            const logPath = runningCharacter.log_file;
+            if (fs.existsSync(logPath)) {
+                const { host, agentId } = await LogCharacterSystemData(logPath);
+                if (!host) throw new Error(`Character host not found in log`);
+                if (!agentId) throw new Error(`Character agent Id not found in log`);
+                const formData = new FormData();
+                formData.append("text", message);
+                formData.append("user", "user");
+                const response = await fetch(
+                `http:/${host}/${agentId}/message`,
+                {
+                        method: "POST",
+                        body: formData
+                    }
+                );
+                if (!response.ok) throw new Error(`Send message request failed with status: ${response.statusText}. Error: ${await response.text()}`);
+                responseFetch = await response.json();
+                responseFetch = (Array.isArray(responseFetch) && responseFetch.length > 0) ? responseFetch[0] : responseFetch;
+            } else throw new Error(`Log file not found: ${logPath}`);
+        } else throw new Error(`Character not found in running processes`);
+        response.json({ status: true, ...(typeof responseFetch === "object") ? responseFetch : { answer: responseFetch } })
+    } catch (error) {
+        response.status(400).json({
+            status: false,
+            error: error.message,
+        });
+    }
+}
 
 async function LogErrors(logFile, keepLength = 1200, maxLength = 5000, skipUnimportantErrors = false) {
     const errorBlocks = [];
@@ -507,18 +546,6 @@ async function LogPosts(logFile, limit, keepLength = 1200, maxLength = 5000, ski
             const match = clearContent.match(/Posting new tweet: (.*)/);
             blockJson.text = match ? match[1] : null;
 
-            // // Extract the date and text
-            // const match = clear.match(/\[(.*?)\] LOG: Posting new tweet: (.*)/);
-            // if (match) {
-            //     const date = new Date(match[1]); // Parse the date string into a Date object
-            //     const text = match[2]; // Extract the tweet text
-            //
-            //     // Create the JSON object
-            //     const blockJson = {
-            //         date: date.toISOString(), // Convert date to ISO format
-            //         text: text
-            //     };
-
             isBlock = true;
             continue;
         }
@@ -550,6 +577,30 @@ async function LogPosts(logFile, limit, keepLength = 1200, maxLength = 5000, ski
     return { blocks, blocksJson };
 }
 
+async function LogCharacterSystemData(logFile) {
+    const data = {};
+    const fileStream = fs.createReadStream(logFile, { encoding: 'utf8' });
+    // Use readline to process the file line-by-line
+    const rl = readline.createInterface({
+        input: fileStream,
+        crlfDelay: Infinity // Handles different newline formats
+    });
+    for await (const line of rl) {
+        if (line.includes('Agent ID:')) {
+            const clearContent = ClearContent(line);
+            data.agentId = clearContent.split("Agent ID: ")[1].trim();
+        }
+        if (line.includes('REST API bound to')) {
+            const clearContent = ClearContent(line);
+            const match = clearContent.match(/\b\d+\.\d+\.\d+\.\d+:\d+\b/);
+            data.host = match ? match[0] : '';
+            data.port = data.host.split(":")[1].trim();
+            return data;
+        }
+    }
+    return data;
+}
+
 function TrimMiddleContent(bigString, keepLength, maxLength) {
     if (bigString.length <= maxLength) return bigString;
     const halfKeepLength = Math.floor(keepLength / 2);
@@ -561,7 +612,7 @@ function TrimMiddleContent(bigString, keepLength, maxLength) {
 function ClearContent(line, keepLength, maxLength) {
     const ansiRegex = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
     let cleanLine = line.replace(ansiRegex, '');
-    cleanLine = TrimMiddleContent(cleanLine, keepLength, maxLength);
+    cleanLine = keepLength && maxLength ? TrimMiddleContent(cleanLine, keepLength, maxLength) : cleanLine;
     return cleanLine;
 }
 
@@ -569,14 +620,14 @@ function ClearContent(line, keepLength, maxLength) {
 async function ReadRunningProcessesPm2() {
     const excludedNames = ['eliza_character_api'];
     await new Promise((resolve, reject) => pm2.connect((err) => (err ? reject(new Error(`Error connecting to PM2: ${err}`)) : resolve())));
-    let list = await new Promise((resolve, reject) => pm2.list((err, processList)=> (err ? reject(new Error(`Error retrieving Eliza process list: ${err.message}`)) : resolve(processList))));
+    let allProcesses = await new Promise((resolve, reject) => pm2.list((err, processList)=> (err ? reject(new Error(`Error retrieving Eliza process list: ${err.message}`)) : resolve(processList))));
     pm2.disconnect();
-    list = list.map((item) => ({ pid: item.pid, pm_id: item.pm2_env.pm_id, name: item.name, log_file: item.pm2_env.pm_out_log_path, character_path:`characters/${item.name}.character.json` }));
-    list = list.filter((item) => !excludedNames.includes(item.name));
-    return list;
+    let characterProcesses = allProcesses.map((item) => ({ pid: item.pid, pm_id: item.pm2_env.pm_id, name: item.name, log_file: item.pm2_env.pm_out_log_path, character_path:`characters/${item.name}.character.json` }));
+    characterProcesses = characterProcesses.filter((item) => !excludedNames.includes(item.name));
+    return { characterProcesses, allProcesses };
 }
 
-async function GetCharacterList() {
+async function GetCharacterFileList() {
     const rootDir = path.resolve('../');
     const charactersPath = path.join(rootDir, `characters/`);
     const files = await new Promise((resolve, reject) => fs.readdir(charactersPath, (err, files) => (err ? reject(new Error(`Error reading characters directory: ${err.message}`)) : resolve(files))));
