@@ -81,7 +81,7 @@ runtime: IAgentRuntime
         const collectionIdsArray = data.collectionIds.split(',').map(id => id.trim());
         const brnApiKeysArray = data.brnApiKeys.split(',').map(id => id.trim());
         elizaLogger.info("Get Brn collection with option:", data);
-        
+
         const resultItems = [];
         for (const [index, collectionId] of collectionIdsArray.entries()) {
             try {

@@ -20,6 +20,7 @@ import {
 } from "@elizaos/core";
 import type { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
+import { getBrnNews } from "../../plugin-brn/api.ts";
 
 export const twitterMessageHandlerTemplate =
     `
@@ -436,6 +437,31 @@ export class TwitterInteractionClient {
             return { text: "Response Decision:", action: shouldRespond };
         }
 
+        const brnHost = this.runtime.getSetting("BRN_HOST");
+        const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
+        const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
+
+        let brnCollectionDataFetch = {};
+        if (brnHost && collectionIds && brnApiKeys) {
+            // Sorted by fields.date, newest on top, only not viewed. And set viewed
+            brnCollectionDataFetch = await getBrnNews(
+                {
+                    brnHost,
+                    collectionIds,
+                    brnApiKeys,
+                    offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
+                    fetchLimit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
+                    totalLimit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_TOTAL_LIMIT")) || 1,
+                    sortField: 'date',
+                    sortDirection: '-1',
+                    setViewed: true,
+                    viewed: '0'
+                },
+                this.runtime
+            );
+        }
+        const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
+
         const context = composeContext({
             state: {
                 ...state,
@@ -455,6 +481,7 @@ export class TwitterInteractionClient {
                             ).join('\n')
                         ).join('\n\n')
                     : '',
+                brnCollectionData,
             },
             template:
                 this.runtime.character.templates
