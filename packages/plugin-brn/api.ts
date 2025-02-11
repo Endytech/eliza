@@ -3,6 +3,8 @@ import {
     IAgentRuntime,
 } from "@elizaos/core";
 
+const requestCounter = new Map();
+
 export async function getCollectionItems(
     brnHost: string,
     collectionId: string,
@@ -76,6 +78,7 @@ runtime: IAgentRuntime
     success: boolean;
     data?: string;
     error?: any;
+    requestsToday?: number;
 }> => {
     try {
         const collectionIdsArray = data.collectionIds.split(',').map(id => id.trim());
@@ -119,7 +122,13 @@ runtime: IAgentRuntime
             }
         }
         if (resultItems.length < 1) throw new Error(`Get empty Brn News of all collections`);
-        return { success: true, data: JSON.stringify(resultItems) };
+        const today = new Date().toISOString().split("T")[0]; // Get today date
+        requestCounter.set(today, (requestCounter.get(today) || 0) + 1);
+        elizaLogger.info("🔥 Request Counter:");
+        requestCounter.forEach((count, date) => {
+            elizaLogger.info(`${date}: ${count}`);
+        });
+        return { success: true, data: JSON.stringify(resultItems), requestsToday: requestCounter.get(today) };
     } catch (error) {
         elizaLogger.warn(`Get Brn News failed. Error - ${error}`);
         return { success: false, error: error };
