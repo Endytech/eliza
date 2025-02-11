@@ -1,5 +1,4 @@
 import fs from 'fs';
-import os from 'os';
 import common_config from './_config';
 
 export default class Logger {
@@ -49,7 +48,7 @@ export default class Logger {
             if (!fs.existsSync(logApiPath)) {
                 fs.mkdirSync(logApiPath, { recursive: true });
             }
-            const fileName = `${logApiPath}/${logApiFilename}.txt`;
+            const fileName = `${logApiPath}/${logApiFilename}`;
             await fs.writeFile(fileName, msgAll.join(''), { flag: 'a' }, (err) => {
                 if (err) throw err;
             });

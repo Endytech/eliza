@@ -60,7 +60,7 @@ async function CharacterLogErrors(request, response) {
         let { characterProcesses: runningProcesses } = await ReadRunningProcessesPm2();
         if (character) {
             runningProcesses = runningProcesses.filter((runningCharacter) => (runningCharacter.name === character));
-            if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`)
+            if (runningProcesses.length < 1) throw new Error(`Character not found in running processes`, { cause: 'user_error' })
         }
         const errors = [];
         const totalErrors = [];
@@ -95,7 +95,7 @@ async function CharacterLogErrors(request, response) {
                     await sendToBotNotifier(`_____________________\nCharacter: ${runningCharacter.name}\n\n${characterErrors.join('\n\n')}`);
                 }
                 if (characterErrors.length > 0) totalErrors.push(`Character: ${runningCharacter.name}\nTotal errors count: ${characterErrors.length}\n_____________________`);
-            } else throw new Error(`Log file not found: ${logPath}`);
+            } else throw new Error(`Log file not found: ${logPath}`, { cause: 'system_error' });
         }
         if (notify_errors && totalErrors.length > 0) {
             await new Promise((resolve) => setTimeout(resolve,  5000));
