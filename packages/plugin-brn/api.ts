@@ -81,26 +81,21 @@ runtime: IAgentRuntime
         const collectionIdsArray = data.collectionIds.split(',').map(id => id.trim());
         const brnApiKeysArray = data.brnApiKeys.split(',').map(id => id.trim());
         elizaLogger.info("Get Brn collection with option:", data);
-
+        
         const resultItems = [];
         for (const [index, collectionId] of collectionIdsArray.entries()) {
             try {
                 const brnApiKey = brnApiKeysArray[index];
                 const itemsFetch = await getCollectionItems(data.brnHost, collectionId, brnApiKey, data.offset, data.fetchLimit, data.sortField, data.sortDirection, data.viewed)
                 if (itemsFetch.items && itemsFetch.items.length > 0) {
-                    elizaLogger.info(`totalLimit: ${data.totalLimit}`);
                     if (data.totalLimit) {
                         let spaceLeft = data.totalLimit - resultItems.length;
-                        elizaLogger.info(`spaceLeft: ${spaceLeft}`);
-                        elizaLogger.info(` itemsFetch.items.length: ${itemsFetch.items.length}`);
                         if (spaceLeft > 0) {
                             itemsFetch.items = itemsFetch.items.slice(0, spaceLeft);
                         } else {
                             itemsFetch.items = [];
                         }
                     }
-                    elizaLogger.info(` itemsFetch.items.length: ${itemsFetch.items.length}`);
-
                     const items = itemsFetch.items.map((item) => {
                         return {
                             title: item?.fields?.title,
@@ -109,23 +104,21 @@ runtime: IAgentRuntime
                         };
                     });
                     resultItems.push(...items);
-                    elizaLogger.info(` resultItems: ${JSON.stringify(resultItems)}`);
                     if (data.setViewed) {
                         for (const item of itemsFetch.items) {
                             try {
                                 await setViewedCollectionItems(data.brnHost, item.item_id, brnApiKey)
                             } catch (error) {
-                                elizaLogger.error(error);
+                                elizaLogger.warn(`Get Brn News collection '${collectionId}' failed set viewed:  Error - ${error}`);
                             }
                         }
                     }
                 }
             } catch (error) {
-                elizaLogger.error(`Get Brn News collection '${collectionId}' failed:  Error - ${error}`)
+                elizaLogger.warn(`Get Brn News collection '${collectionId}' failed:  Error - ${error}`)
             }
         }
         if (resultItems.length < 1) throw new Error(`Get empty Brn News of all collections`);
-        elizaLogger.info(` total: ${JSON.stringify(resultItems)}`);
         return { success: true, data: JSON.stringify(resultItems) };
     } catch (error) {
         elizaLogger.warn(`Get Brn News failed. Error - ${error}`);
