@@ -3,6 +3,7 @@ import fs from 'fs';
 import * as path from 'path';
 import bodyParser from 'body-parser';
 import common_config from './_config';
+import logger from './logger';
 import readline from 'readline';
 import pm2 from 'pm2';
 import got from 'got';
@@ -17,6 +18,10 @@ app.use((req, res, next) => {
 });
 app.use(bodyParser.json({ limit: '1mb' }));
 app.use(bodyParser.urlencoded({ extended: false }));
+
+app.use((req, res, next) => {
+    logger.Process(req, res, next);
+});
 
 // Start character
 app.get('/character/start', StartCharacter);
@@ -107,7 +112,9 @@ async function CharacterLogErrors(request, response) {
         if (response) {
             response.status(400).json({
                 status: false,
+                errorCause: error.cause,
                 error: error.message,
+                errorStack: error.stack,
             });
         } else {
             console.error(`${new Date().toISOString()}. ${error}`);
@@ -206,7 +213,9 @@ async function StartCharacter(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -229,7 +238,9 @@ async function StopCharacter(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -241,7 +252,9 @@ async function RunList(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -263,7 +276,9 @@ async function CreateCharacter(request, response, update = false) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -283,7 +298,9 @@ async function UpdateCharacter(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -314,7 +331,9 @@ async function DeleteCharacter(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -334,7 +353,9 @@ async function CharacterList(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -353,7 +374,9 @@ async function CharacterView(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -397,7 +420,9 @@ async function LogViewStream(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -437,7 +462,9 @@ async function CharacterPosts(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }
@@ -475,7 +502,9 @@ async function CharacterMessage(request, response) {
     } catch (error) {
         response.status(400).json({
             status: false,
+            errorCause: error.cause,
             error: error.message,
+            errorStack: error.stack,
         });
     }
 }

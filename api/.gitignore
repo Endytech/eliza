@@ -1,6 +1,5 @@
-.idea
 *.log
-npm-debug.log*
+logs
 node_modules
 .eslintrc.js
 package-lock.json
