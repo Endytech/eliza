@@ -25,7 +25,7 @@ import { buildConversationThread, fetchMediaData } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
 import { saveBase64Image, saveHeuristImage } from "../../plugin-image-generation/src/index.ts";
-import { getBrnNews } from "../../plugin-brn/api.ts";
+import { getBrnNews, getBrnNewsTodayCounter } from "../../plugin-brn/api.ts";
 import fs from "fs";
 import { Buffer } from "buffer";
 import {
@@ -520,6 +520,17 @@ export class TwitterPostClient {
             const topics = this.runtime.character.topics.join(", ");
             const maxTweetLength = this.client.twitterConfig.MAX_TWEET_LENGTH;
 
+            const brnCollectionPostLimitDay = this.runtime.getSetting("BRN_NEWS_COLLECTION_POST_LIMIT_DAY");
+            if (brnCollectionPostLimitDay) {
+                const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
+                elizaLogger.info(`Brn collection requests today - ${brnCollectionRequestsToday}. Limit - ${brnCollectionPostLimitDay}`);
+                // Skip if brnCollectionRequestsToday counter become more than brnCollectionPostLimitDay
+                if (brnCollectionPostLimitDay <= brnCollectionRequestsToday) {
+                    elizaLogger.warn('Brn collection requests today have exceeded the limit. Generate message skipped.');
+                    return;
+                }
+            }
+
             const brnHost = this.runtime.getSetting("BRN_HOST");
             const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
             const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
@@ -544,6 +555,10 @@ export class TwitterPostClient {
                 );
             }
             const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
+            if (brnHost && collectionIds && brnApiKeys && brnCollectionData === '') {
+                elizaLogger.warn('Brn collection return empty item now. Generate message skipped.');
+                return;
+            }
 
             const state = await this.runtime.composeState(
                 {

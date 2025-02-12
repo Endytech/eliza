@@ -35,7 +35,6 @@ import {
 } from "./constants";
 
 import fs from "fs";
-import { getBrnNews, getBrnNewsTodayCounter } from "../../plugin-brn/api.ts";
 
 enum MediaType {
     PHOTO = "photo",
@@ -1065,46 +1064,6 @@ export class MessageManager {
         }
 
         this.lastChannelActivity[ctx.chat.id.toString()] = Date.now();
-
-        const brnCollectionPostLimitDay = this.runtime.getSetting("BRN_NEWS_COLLECTION_POST_LIMIT_DAY");
-        if (brnCollectionPostLimitDay) {
-            const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
-            elizaLogger.info(`Brn collection requests today - ${brnCollectionRequestsToday}. Limit - ${brnCollectionPostLimitDay}`);
-            // Skip if brnCollectionRequestsToday counter become more than brnCollectionPostLimitDay
-            if (brnCollectionPostLimitDay <= brnCollectionRequestsToday) {
-                elizaLogger.warn('Brn collection requests today have exceeded the limit. Generate message skipped.');
-                return;
-            }
-        }
-
-        const brnHost = this.runtime.getSetting("BRN_HOST");
-        const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
-        const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
-
-        let brnCollectionDataFetch = {};
-        if (brnHost && collectionIds && brnApiKeys) {
-            // Sorted by fields.date, newest on top, only not viewed. And set viewed
-            brnCollectionDataFetch = await getBrnNews(
-                {
-                    brnHost,
-                    collectionIds,
-                    brnApiKeys,
-                    offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
-                    fetchLimit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
-                    totalLimit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_TOTAL_LIMIT")) || 1,
-                    sortField: 'date',
-                    sortDirection: '-1',
-                    setViewed: false,
-                    viewed: '0'
-                },
-                this.runtime
-            );
-        }
-        const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
-        if (brnHost && collectionIds && brnApiKeys && brnCollectionData === '') {
-            elizaLogger.warn('Brn collection return empty item now. Generate message skipped.');
-            return;
-        }
 
         // Check for pinned message and route to monitor function
         if (

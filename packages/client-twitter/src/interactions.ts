@@ -20,7 +20,7 @@ import {
 } from "@elizaos/core";
 import type { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
-import { getBrnNews } from "../../plugin-brn/api.ts";
+import { getBrnNews, getBrnNewsTodayCounter } from "../../plugin-brn/api.ts";
 
 export const twitterMessageHandlerTemplate =
     `
@@ -437,6 +437,17 @@ export class TwitterInteractionClient {
             return { text: "Response Decision:", action: shouldRespond };
         }
 
+        const brnCollectionPostLimitDay = this.runtime.getSetting("BRN_NEWS_COLLECTION_POST_LIMIT_DAY");
+        if (brnCollectionPostLimitDay) {
+            const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
+            elizaLogger.info(`Brn collection requests today - ${brnCollectionRequestsToday}. Limit - ${brnCollectionPostLimitDay}`);
+            // Skip if brnCollectionRequestsToday counter become more than brnCollectionPostLimitDay
+            if (brnCollectionPostLimitDay <= brnCollectionRequestsToday) {
+                elizaLogger.warn('Brn collection requests today have exceeded the limit. Generate message skipped.');
+                return;
+            }
+        }
+
         const brnHost = this.runtime.getSetting("BRN_HOST");
         const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
         const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
@@ -461,6 +472,10 @@ export class TwitterInteractionClient {
             );
         }
         const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
+        if (brnHost && collectionIds && brnApiKeys && brnCollectionData === '') {
+            elizaLogger.warn('Brn collection return empty item now. Generate message skipped.');
+            return;
+        }
 
         const context = composeContext({
             state: {
