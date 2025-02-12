@@ -37,7 +37,7 @@ export async function getCollectionItems(
     return responseFetch;
 }
 
-export async function setViewedCollectionItems(
+async function setViewedCollectionItems(
     brnHost: string,
     itemId: string,
     brnApiKey: string,
@@ -128,9 +128,26 @@ runtime: IAgentRuntime
         requestCounter.forEach((count, date) => {
             elizaLogger.info(`${date}: ${count}`);
         });
-        return { success: true, data: JSON.stringify(resultItems), requestsToday: requestCounter.get(today) };
+        return { success: true, data: JSON.stringify(resultItems), requestsToday: await getBrnNewsTodayCounter() };
     } catch (error) {
         elizaLogger.warn(`Get Brn News failed. Error - ${error}`);
         return { success: false, error: error };
     }
 }
+
+export const getBrnNewsTodayCounter = async (): Promise<number> => {
+    requestCounter.forEach((count, date) => {
+        elizaLogger.warn(`${date}: ${count}`);
+    });
+    const today = new Date().toISOString().split("T")[0]; // Get today date
+    return requestCounter.get(today);
+}
+
+// export async function getCollectionItems()
+//     : Promise<{
+//     requestsToday?: number;
+// }> {
+//     const today = new Date().toISOString().split("T")[0]; // Get today date
+//     return requestCounter.get(today)
+// }
+//

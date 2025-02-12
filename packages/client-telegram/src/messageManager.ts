@@ -35,7 +35,7 @@ import {
 } from "./constants";
 
 import fs from "fs";
-import {getBrnNews} from "../../plugin-brn/api.ts";
+import { getBrnNews, getBrnNewsTodayCounter } from "../../plugin-brn/api.ts";
 
 enum MediaType {
     PHOTO = "photo",
@@ -1066,6 +1066,17 @@ export class MessageManager {
 
         this.lastChannelActivity[ctx.chat.id.toString()] = Date.now();
 
+        const brnCollectionPostLimitDay = this.runtime.getSetting("BRN_NEWS_COLLECTION_POST_LIMIT_DAY");
+        if (brnCollectionPostLimitDay) {
+            const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
+            elizaLogger.warn(`brnCollectionRequestsToday - ${brnCollectionRequestsToday}`);
+            // Skip if brnCollectionRequestsToday counter become more than brnCollectionPostLimitDay
+            if (brnCollectionPostLimitDay <= brnCollectionRequestsToday) {
+                elizaLogger.warn(`skip------`);
+                return;
+            }
+        }
+
         const brnHost = this.runtime.getSetting("BRN_HOST");
         const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
         const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
@@ -1090,8 +1101,7 @@ export class MessageManager {
             );
         }
         const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
-        const requestsToday = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.requestsToday : '';
-        elizaLogger.warn(`requestsToday - ${requestsToday}`);
+
         // Check for pinned message and route to monitor function
         if (
             this.autoPostConfig.enabled &&
