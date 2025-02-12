@@ -3,7 +3,7 @@ import {
     IAgentRuntime,
 } from "@elizaos/core";
 
-const requestCounter = new Map();
+const requestBrnNewsCounter = new Map();
 
 export async function getCollectionItems(
     brnHost: string,
@@ -123,11 +123,7 @@ runtime: IAgentRuntime
         }
         if (resultItems.length < 1) throw new Error(`Get empty Brn News of all collections`);
         const today = new Date().toISOString().split("T")[0]; // Get today date
-        requestCounter.set(today, (requestCounter.get(today) || 0) + 1);
-        elizaLogger.info("🔥 Request Counter:");
-        requestCounter.forEach((count, date) => {
-            elizaLogger.info(`${date}: ${count}`);
-        });
+        requestBrnNewsCounter.set(today, (requestBrnNewsCounter.get(today) || 0) + 1);
         return { success: true, data: JSON.stringify(resultItems), requestsToday: await getBrnNewsTodayCounter() };
     } catch (error) {
         elizaLogger.warn(`Get Brn News failed. Error - ${error}`);
@@ -136,18 +132,10 @@ runtime: IAgentRuntime
 }
 
 export const getBrnNewsTodayCounter = async (): Promise<number> => {
-    requestCounter.forEach((count, date) => {
-        elizaLogger.warn(`${date}: ${count}`);
-    });
+    // elizaLogger.info("Request Counter:");
+    // requestBrnNewsCounter.forEach((count, date) => {
+    //     elizaLogger.info(`${date}: ${count}`);
+    // });
     const today = new Date().toISOString().split("T")[0]; // Get today date
-    return requestCounter.get(today);
+    return requestBrnNewsCounter.get(today);
 }
-
-// export async function getCollectionItems()
-//     : Promise<{
-//     requestsToday?: number;
-// }> {
-//     const today = new Date().toISOString().split("T")[0]; // Get today date
-//     return requestCounter.get(today)
-// }
-//

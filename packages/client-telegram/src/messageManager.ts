@@ -1069,10 +1069,10 @@ export class MessageManager {
         const brnCollectionPostLimitDay = this.runtime.getSetting("BRN_NEWS_COLLECTION_POST_LIMIT_DAY");
         if (brnCollectionPostLimitDay) {
             const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
-            elizaLogger.warn(`brnCollectionRequestsToday - ${brnCollectionRequestsToday}`);
+            elizaLogger.info(`Brn collection requests today - ${brnCollectionRequestsToday}. Limit - ${brnCollectionPostLimitDay}`);
             // Skip if brnCollectionRequestsToday counter become more than brnCollectionPostLimitDay
             if (brnCollectionPostLimitDay <= brnCollectionRequestsToday) {
-                elizaLogger.warn(`skip------`);
+                elizaLogger.warn('Brn collection requests today have exceeded the limit. Generate message skipped.');
                 return;
             }
         }
@@ -1101,6 +1101,10 @@ export class MessageManager {
             );
         }
         const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
+        if (brnHost && collectionIds && brnApiKeys && brnCollectionData === '') {
+            elizaLogger.warn('Brn collection return empty item now. Generate message skipped.');
+            return;
+        }
 
         // Check for pinned message and route to monitor function
         if (
