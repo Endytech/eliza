@@ -791,14 +791,19 @@ export class TwitterPostClient {
 
         // Try to parse as JSON first
         const jsonResponse = parseJSONObjectFromText(cleanedResponse);
-        elizaLogger.log("generate tweet content parseJSONObjectFromText");
+        elizaLogger.log("generate tweet content parseJSONObjectFromText", jsonResponse);
+        elizaLogger.log("generate tweet content parseJSONObjectFromText", jsonResponse.text);
 
-        if (jsonResponse.text) {
-            const truncateContent = truncateToCompleteSentence(
-                jsonResponse.text,
-                maxTweetLength
-            );
-            return truncateContent;
+        try {
+            if (jsonResponse.text) {
+                const truncateContent = truncateToCompleteSentence(
+                    jsonResponse.text,
+                    maxTweetLength
+                );
+                return truncateContent;
+            }
+        } catch (error) {
+        elizaLogger.error("Error truncateToCompleteSentence:", error);
         }
         elizaLogger.log("generate tweet content jsonResponse.text");
         if (typeof jsonResponse === "object") {
