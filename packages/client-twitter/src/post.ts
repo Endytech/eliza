@@ -797,6 +797,7 @@ export class TwitterPostClient {
             );
             return truncateContent;
         }
+        elizaLogger.log("generate tweet content jsonResponse.text");
         if (typeof jsonResponse === "object") {
             const possibleContent =
                 jsonResponse.content ||
@@ -810,7 +811,7 @@ export class TwitterPostClient {
                 return truncateContent;
             }
         }
-
+        elizaLogger.log("generate tweet content jsonResponse.object");
         let truncateContent = null;
         // Try extracting text attribute
         const parsingText = extractAttributes(cleanedResponse, ["text"]).text;
@@ -820,7 +821,7 @@ export class TwitterPostClient {
                 maxTweetLength
             );
         }
-
+        elizaLogger.log("generate tweet content parsingText");
         if (!truncateContent) {
             // If not JSON or no valid content found, clean the raw text
             truncateContent = truncateToCompleteSentence(
@@ -828,6 +829,7 @@ export class TwitterPostClient {
                 maxTweetLength
             );
         }
+        elizaLogger.log("generate tweet content truncateToCompleteSentence");
 
         return truncateContent;
     }
