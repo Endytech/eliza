@@ -448,6 +448,9 @@ export class TwitterInteractionClient {
             }
         }
 
+        const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
+        elizaLogger.info(`Brn collection requests today - ${brnCollectionRequestsToday}`);
+
         const brnHost = this.runtime.getSetting("BRN_HOST");
         const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
         const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
