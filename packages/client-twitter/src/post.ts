@@ -787,15 +787,15 @@ export class TwitterPostClient {
         // First clean up any markdown and newlines
         const cleanedResponse = cleanJsonResponse(response);
         const maxTweetLength = DEFAULT_MAX_TWEET_LENGTH;
-        elizaLogger.log("generate tweet content cleanJsonResponse");
+        elizaLogger.log(`generate tweet content cleanJsonResponse ${cleanedResponse}`);
 
         // Try to parse as JSON first
         const jsonResponse = parseJSONObjectFromText(cleanedResponse);
         elizaLogger.log("generate tweet content parseJSONObjectFromText", jsonResponse);
-        elizaLogger.log("generate tweet content parseJSONObjectFromText", jsonResponse.text);
+        elizaLogger.log("generate tweet content parseJSONObjectFromText", jsonResponse?.text);
 
         try {
-            if (jsonResponse.text) {
+            if (jsonResponse?.text) {
                 const truncateContent = truncateToCompleteSentence(
                     jsonResponse.text,
                     maxTweetLength
