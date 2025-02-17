@@ -806,11 +806,12 @@ export class TwitterPostClient {
         elizaLogger.error("Error truncateToCompleteSentence:", error);
         }
         elizaLogger.log("generate tweet content jsonResponse.text");
+        elizaLogger.log("typeof jsonResponse", typeof jsonResponse);
         if (typeof jsonResponse === "object") {
             const possibleContent =
-                jsonResponse.content ||
-                jsonResponse.message ||
-                jsonResponse.response;
+                jsonResponse?.content ||
+                jsonResponse?.message ||
+                jsonResponse?.response;
             if (possibleContent) {
                 const truncateContent = truncateToCompleteSentence(
                     possibleContent,
@@ -822,7 +823,7 @@ export class TwitterPostClient {
         elizaLogger.log("generate tweet content jsonResponse.object");
         let truncateContent = null;
         // Try extracting text attribute
-        const parsingText = extractAttributes(cleanedResponse, ["text"]).text;
+        const parsingText = extractAttributes(cleanedResponse, ["text"])?.text;
         if (parsingText) {
             truncateContent = truncateToCompleteSentence(
                 parsingText,
