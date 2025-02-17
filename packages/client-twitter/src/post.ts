@@ -1385,6 +1385,7 @@ export class TwitterPostClient {
                                   .join("\n")}`
                             : "",
                     quotedContent,
+                    brnCollectionData
                 }
             );
 
