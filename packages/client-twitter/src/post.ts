@@ -776,6 +776,8 @@ export class TwitterPostClient {
                 twitterPostTemplate,
         });
 
+        elizaLogger.log("generate tweet context:\n" + context);
+
         const response = await generateText({
             runtime: this.runtime,
             context: options?.context || context,
@@ -787,12 +789,9 @@ export class TwitterPostClient {
         // First clean up any markdown and newlines
         const cleanedResponse = cleanJsonResponse(response);
         const maxTweetLength = DEFAULT_MAX_TWEET_LENGTH;
-        elizaLogger.log(`generate tweet content cleanJsonResponse ${cleanedResponse}`);
 
         // Try to parse as JSON first
         const jsonResponse = parseJSONObjectFromText(cleanedResponse);
-        elizaLogger.log("generate tweet content parseJSONObjectFromText", jsonResponse);
-        elizaLogger.log("generate tweet content parseJSONObjectFromText", jsonResponse?.text);
 
         try {
             if (jsonResponse?.text) {
@@ -803,10 +802,7 @@ export class TwitterPostClient {
                 return truncateContent;
             }
         } catch (error) {
-        elizaLogger.error("Error truncateToCompleteSentence:", error);
         }
-        elizaLogger.log("generate tweet content jsonResponse.text");
-        elizaLogger.log("typeof jsonResponse", typeof jsonResponse);
         if (typeof jsonResponse === "object") {
             const possibleContent =
                 jsonResponse?.content ||
@@ -820,7 +816,6 @@ export class TwitterPostClient {
                 return truncateContent;
             }
         }
-        elizaLogger.log("generate tweet content jsonResponse.object");
         let truncateContent = null;
         // Try extracting text attribute
         const parsingText = extractAttributes(cleanedResponse, ["text"])?.text;
