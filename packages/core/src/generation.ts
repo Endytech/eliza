@@ -1599,6 +1599,7 @@ export async function generateMessageResponse({
     context = await trimTokens(context, max_context_length, runtime);
     elizaLogger.debug("Context:", context);
     let retryLength = 1000; // exponential backoff
+    let retries = 1; // exponential backoff
     while (true) {
         try {
             elizaLogger.log("Generating message response..");
@@ -1613,6 +1614,8 @@ export async function generateMessageResponse({
             const parsedContent = parseJSONObjectFromText(response) as Content;
             if (!parsedContent) {
                 elizaLogger.debug("parsedContent is null, retrying");
+                if (retries > 10) return parsedContent;
+                retries++;
                 continue;
             }
 
