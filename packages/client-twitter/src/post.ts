@@ -13,7 +13,8 @@ import {
     extractAttributes,
     cleanJsonResponse,
     generateImage,
-    parseBooleanFromText
+    parseBooleanFromText,
+    messageCompletionFooter
 } from "@elizaos/core";
 import { generateSDImage } from "../../plugin-sd-generation/src/index.ts";
 import { elizaLogger } from "@elizaos/core";
@@ -1158,12 +1159,14 @@ export class TwitterPostClient {
                             }
                         );
 
+                        let characterTwitterMessageHandlerTemplate = this.runtime.character.templates?.twitterMessageHandlerTemplate || this.runtime.character?.templates?.messageHandlerTemplate;
+                        if (characterTwitterMessageHandlerTemplate) characterTwitterMessageHandlerTemplate += messageCompletionFooter;
+
                         const quoteContent = await this.generateTweetContent(
                             enrichedState,
                             {
                                 template:
-                                    this.runtime.character.templates
-                                        ?.twitterMessageHandlerTemplate ||
+                                    characterTwitterMessageHandlerTemplate ||
                                     twitterMessageHandlerTemplate,
                             }
                         );
@@ -1395,11 +1398,13 @@ export class TwitterPostClient {
                 }
             );
 
+            let characterTwitterMessageHandlerTemplate = this.runtime.character.templates?.twitterMessageHandlerTemplate || this.runtime.character?.templates?.messageHandlerTemplate;
+            if (characterTwitterMessageHandlerTemplate) characterTwitterMessageHandlerTemplate += messageCompletionFooter;
+
             // Generate and clean the reply content
             const replyText = await this.generateTweetContent(enrichedState, {
                 template:
-                    this.runtime.character.templates
-                        ?.twitterMessageHandlerTemplate ||
+                    characterTwitterMessageHandlerTemplate ||
                     twitterMessageHandlerTemplate,
             });
 

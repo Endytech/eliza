@@ -480,6 +480,9 @@ export class TwitterInteractionClient {
             return;
         }
 
+        let characterTwitterMessageHandlerTemplate = this.runtime.character.templates?.twitterMessageHandlerTemplate || this.runtime.character?.templates?.messageHandlerTemplate;
+        if (characterTwitterMessageHandlerTemplate) characterTwitterMessageHandlerTemplate += messageCompletionFooter;
+
         const context = composeContext({
             state: {
                 ...state,
@@ -502,9 +505,7 @@ export class TwitterInteractionClient {
                 brnCollectionData,
             },
             template:
-                this.runtime.character.templates
-                    ?.twitterMessageHandlerTemplate ||
-                this.runtime.character?.templates?.messageHandlerTemplate ||
+                characterTwitterMessageHandlerTemplate ||
                 twitterMessageHandlerTemplate,
         });
         elizaLogger.debug("Interactions prompt:\n" + context);
