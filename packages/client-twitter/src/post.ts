@@ -607,7 +607,7 @@ export class TwitterPostClient {
                 tweetTextForPosting = parsedResponse.text;
             } else {
                 // If not JSON, use the raw text directly
-                tweetTextForPosting = rawTweetContent.trim();
+                tweetTextForPosting = response.trim();
             }
 
             if (
