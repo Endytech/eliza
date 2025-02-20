@@ -595,6 +595,7 @@ export class TwitterPostClient {
                 modelClass: ModelClass.SMALL,
             });
 
+            elizaLogger.debug("response:\n" + context);
             const rawTweetContent = cleanJsonResponse(response);
 
             // First attempt to clean content
@@ -634,6 +635,7 @@ export class TwitterPostClient {
             if (!tweetTextForPosting) {
                 tweetTextForPosting = rawTweetContent;
             }
+            elizaLogger.debug("tweetTextForPosting:\n" + tweetTextForPosting);
 
             // Truncate the content to the maximum tweet length specified in the environment settings, ensuring the truncation respects sentence boundaries.
             if (maxTweetLength) {
@@ -642,6 +644,7 @@ export class TwitterPostClient {
                     maxTweetLength
                 );
             }
+            elizaLogger.debug("truncateToCompleteSentence:\n" + tweetTextForPosting);
 
             const removeQuotes = (str: string) =>
                 str.replace(/^['"](.*)['"]$/, "$1");
@@ -652,6 +655,7 @@ export class TwitterPostClient {
             tweetTextForPosting = removeQuotes(
                 fixNewLines(tweetTextForPosting)
             );
+            elizaLogger.debug("fixNewLines:\n" + tweetTextForPosting);
 
             if (this.isDryRun) {
                 elizaLogger.info(
