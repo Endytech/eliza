@@ -332,7 +332,7 @@ export function truncateToCompleteSentence(
     }
 
     // If no period, truncate to the nearest whitespace within the limit
-    const lastSpaceIndex = text.lastIndexOf(" ", maxLength - 1);
+    const lastSpaceIndex = text.lastIndexOf(" ", maxLength - 4);
     if (lastSpaceIndex !== -1) {
         const truncatedAtSpace = text.slice(0, lastSpaceIndex).trim();
         if (truncatedAtSpace.length > 0) {
