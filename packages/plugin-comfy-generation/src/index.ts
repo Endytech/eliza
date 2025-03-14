@@ -10,7 +10,7 @@ import {
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import fetch from "node-fetch";
+// import fetch from "node-fetch";
 import { VIDEO_GENERATION_CONSTANTS } from "./constants";
 
 const waitForCompletion = async (id: string, apiKey: string): Promise<any> => {
