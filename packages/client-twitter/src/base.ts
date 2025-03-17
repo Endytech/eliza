@@ -265,7 +265,7 @@ export class ClientBase extends EventEmitter {
         const ct0 = this.runtime.getSetting("TWITTER_COOKIES_CT0");
         const guestId = this.runtime.getSetting("TWITTER_COOKIES_GUEST_ID");
 
-        const createTwitterCookies = (authToken: string, ct0: string, guestId: string) => 
+        const createTwitterCookies = (authToken: string, ct0: string, guestId: string) =>
         authToken && ct0 && guestId
             ? [
                 { key: 'auth_token', value: authToken, domain: '.twitter.com' },
@@ -311,7 +311,7 @@ export class ClientBase extends EventEmitter {
             }
 
             retries--;
-            elizaLogger.error(
+            elizaLogger.warn(
                 `Failed to login to Twitter. Retrying... (${retries} attempts left)`
             );
 

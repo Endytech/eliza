@@ -15,10 +15,12 @@ import {
     elizaLogger,
     getEmbeddingZeroVector,
     type IImageDescriptionService,
-    ServiceType
+    ServiceType,
+    parseBooleanFromText
 } from "@elizaos/core";
 import type { ClientBase } from "./base";
 import { buildConversationThread, sendTweet, wait } from "./utils.ts";
+import { getBrnNews, getBrnNewsTodayCounter } from "../../plugin-brn/api.ts";
 
 export const twitterMessageHandlerTemplate =
     `
@@ -277,7 +279,7 @@ export class TwitterInteractionClient {
                     );
 
                     const message = {
-                        content: { 
+                        content: {
                             text: tweet.text,
                             imageUrls: tweet.photos?.map(photo => photo.url) || []
                         },
@@ -348,21 +350,24 @@ export class TwitterInteractionClient {
             )
             .join("\n\n");
 
+        const makeImageDescriptions = parseBooleanFromText(this.runtime.getSetting("MAKE_IMAGE_DESCRIPTIONS")) || false;
         const imageDescriptionsArray = [];
-        try{
-            for (const photo of tweet.photos) {
-                const description = await this.runtime
-                    .getService<IImageDescriptionService>(
-                        ServiceType.IMAGE_DESCRIPTION
-                    )
-                    .describeImage(photo.url);
-                imageDescriptionsArray.push(description);
+        if (makeImageDescriptions) {
+            try {
+                for (const photo of tweet.photos) {
+                    elizaLogger.debug(photo.url);
+                    const description = await this.runtime
+                        .getService<IImageDescriptionService>(
+                            ServiceType.IMAGE_DESCRIPTION
+                        )
+                        .describeImage(photo.url);
+                    imageDescriptionsArray.push(description);
+                }
+            } catch (error) {
+                // Handle the error
+                elizaLogger.error("Error Occured during describing image: ", error);
             }
-        } catch (error) {
-    // Handle the error
-    elizaLogger.error("Error Occured during describing image: ", error);
-}
-
+        }
 
 
 
@@ -433,6 +438,52 @@ export class TwitterInteractionClient {
             return { text: "Response Decision:", action: shouldRespond };
         }
 
+        const brnCollectionPostLimitDay = this.runtime.getSetting("BRN_NEWS_COLLECTION_POST_LIMIT_DAY");
+        if (brnCollectionPostLimitDay) {
+            const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
+            elizaLogger.info(`Brn collection requests today - ${brnCollectionRequestsToday}. Limit - ${brnCollectionPostLimitDay}`);
+            // Skip if brnCollectionRequestsToday counter become more than brnCollectionPostLimitDay
+            if (brnCollectionPostLimitDay <= brnCollectionRequestsToday) {
+                elizaLogger.warn('Brn collection requests today have exceeded the limit. Generate message skipped.');
+                return;
+            }
+        }
+
+        const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
+        elizaLogger.info(`Brn collection requests today - ${brnCollectionRequestsToday}`);
+
+        const brnHost = this.runtime.getSetting("BRN_HOST");
+        const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
+        const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
+
+        let brnCollectionDataFetch = {};
+        if (brnHost && collectionIds && brnApiKeys) {
+            // Sorted by fields.date, newest on top, only not viewed. And set viewed
+            brnCollectionDataFetch = await getBrnNews(
+                {
+                    brnHost,
+                    collectionIds,
+                    brnApiKeys,
+                    offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
+                    fetchLimit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
+                    totalLimit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_TOTAL_LIMIT")) || 1,
+                    sortField: 'date',
+                    sortDirection: '-1',
+                    setViewed: true,
+                    viewed: '0'
+                },
+                this.runtime
+            );
+        }
+        const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
+        if (brnHost && collectionIds && brnApiKeys && brnCollectionData === '') {
+            elizaLogger.warn('Brn collection return empty item now. Generate message skipped.');
+            return;
+        }
+
+        let characterTwitterMessageHandlerTemplate = this.runtime.character.templates?.twitterMessageHandlerTemplate || this.runtime.character?.templates?.messageHandlerTemplate;
+        if (characterTwitterMessageHandlerTemplate) characterTwitterMessageHandlerTemplate += messageCompletionFooter;
+
         const context = composeContext({
             state: {
                 ...state,
@@ -454,11 +505,10 @@ export class TwitterInteractionClient {
                     : '',
             },
             template:
-                this.runtime.character.templates
-                    ?.twitterMessageHandlerTemplate ||
-                this.runtime.character?.templates?.messageHandlerTemplate ||
+                characterTwitterMessageHandlerTemplate ||
                 twitterMessageHandlerTemplate,
         });
+        elizaLogger.debug("Interactions prompt:\n" + context);
 
         const response = await generateMessageResponse({
             runtime: this.runtime,

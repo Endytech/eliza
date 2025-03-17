@@ -12,7 +12,11 @@ import {
     parseJSONObjectFromText,
     extractAttributes,
     cleanJsonResponse,
+    generateImage,
+    parseBooleanFromText,
+    messageCompletionFooter
 } from "@elizaos/core";
+import { generateSDImage } from "../../plugin-sd-generation/src/index.ts";
 import { elizaLogger } from "@elizaos/core";
 import type { ClientBase } from "./base.ts";
 import { postActionResponseFooter } from "@elizaos/core";
@@ -21,6 +25,9 @@ import { type IImageDescriptionService, ServiceType } from "@elizaos/core";
 import { buildConversationThread, fetchMediaData } from "./utils.ts";
 import { twitterMessageHandlerTemplate } from "./interactions.ts";
 import { DEFAULT_MAX_TWEET_LENGTH } from "./environment.ts";
+import { saveBase64Image, saveHeuristImage } from "../../plugin-image-generation/src/index.ts";
+import { getBrnNews, getBrnNewsTodayCounter } from "../../plugin-brn/api.ts";
+import fs from "fs";
 import {
     Client,
     Events,
@@ -408,7 +415,8 @@ export class TwitterPostClient {
                 return await this.sendStandardTweet(
                     client,
                     truncateContent,
-                    tweetId
+                    tweetId,
+                    mediaData
                 );
             } else {
                 return noteTweetResult.data.notetweet_create.tweet_results
@@ -513,6 +521,47 @@ export class TwitterPostClient {
 
             const topics = this.runtime.character.topics.join(", ");
             const maxTweetLength = this.client.twitterConfig.MAX_TWEET_LENGTH;
+
+            const brnCollectionPostLimitDay = this.runtime.getSetting("BRN_NEWS_COLLECTION_POST_LIMIT_DAY");
+            if (brnCollectionPostLimitDay) {
+                const brnCollectionRequestsToday = await getBrnNewsTodayCounter();
+                elizaLogger.info(`Brn collection requests today - ${brnCollectionRequestsToday}. Limit - ${brnCollectionPostLimitDay}`);
+                // Skip if brnCollectionRequestsToday counter become more than brnCollectionPostLimitDay
+                if (brnCollectionPostLimitDay <= brnCollectionRequestsToday) {
+                    elizaLogger.warn('Brn collection requests today have exceeded the limit. Generate message skipped.');
+                    return;
+                }
+            }
+
+            const brnHost = this.runtime.getSetting("BRN_HOST");
+            const collectionIds = this.runtime.getSetting("BRN_NEWS_COLLECTION_IDS");
+            const brnApiKeys = this.runtime.getSetting("BRN_API_KEYS");
+
+            let brnCollectionDataFetch = {};
+            if (brnHost && collectionIds && brnApiKeys) {
+                // Sorted by fields.date, newest on top, only not viewed. And set viewed
+                brnCollectionDataFetch = await getBrnNews(
+                    {
+                        brnHost,
+                        collectionIds,
+                        brnApiKeys,
+                        offset: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_OFFSET")) || 0,
+                        fetchLimit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_LIMIT")) || 10,
+                        totalLimit: parseInt(this.runtime.getSetting("BRN_NEWS_COLLECTION_TOTAL_LIMIT")) || 1,
+                        sortField: 'date',
+                        sortDirection: '-1',
+                        setViewed: true,
+                        viewed: '0'
+                    },
+                    this.runtime
+                );
+            }
+            const brnCollectionData = brnCollectionDataFetch?.success ? brnCollectionDataFetch?.data : '';
+            if (brnHost && collectionIds && brnApiKeys && brnCollectionData === '') {
+                elizaLogger.warn('Brn collection return empty item now. Generate message skipped.');
+                return;
+            }
+
             const state = await this.runtime.composeState(
                 {
                     userId: this.runtime.agentId,
@@ -526,6 +575,7 @@ export class TwitterPostClient {
                 {
                     twitterUserName: this.client.profile.username,
                     maxTweetLength,
+                    brnCollectionData
                 }
             );
 
@@ -556,7 +606,7 @@ export class TwitterPostClient {
                 tweetTextForPosting = parsedResponse.text;
             } else {
                 // If not JSON, use the raw text directly
-                tweetTextForPosting = rawTweetContent.trim();
+                tweetTextForPosting = response.trim();
             }
 
             if (
@@ -609,6 +659,74 @@ export class TwitterPostClient {
                 return;
             }
 
+            // Generate image by generated content
+            const twitterPostImageGen = parseBooleanFromText(this.runtime.getSetting("TWITTER_POST_IMAGE_GEN"));
+            elizaLogger.info(`TWITTER_POST_IMAGE_GEN: ${twitterPostImageGen}`);
+            if (twitterPostImageGen) {
+                mediaData = mediaData || [];
+                const sdImageGenApiKey = this.runtime.getSetting("SD_IMAGE_GEN_API_KEY");
+                const imageSettings = this.runtime.character?.settings?.imageSettings || {};
+                if (sdImageGenApiKey) {
+                    const basePrompt = "masterpiece, best quality, pusheen, {tweetTextForPosting}, <lora:PusheenIXL:1.0>,";
+                    const finalPrompt = basePrompt.replace("{tweetTextForPosting}", tweetTextForPosting);
+                    elizaLogger.log("Generated final prompt:", finalPrompt);
+
+                    // Call your custom generateImage function
+                    const generatedImageResult = await generateSDImage(finalPrompt, this.runtime);
+
+                    if (generatedImageResult.success && generatedImageResult.imagePath) {
+                        const filepath = generatedImageResult.imagePath;
+
+                        mediaData.push({
+                            data: fs.readFileSync(filepath),
+                            mediaType: 'image/png', // Adjust based on your generated file format
+                        });
+
+                        elizaLogger.log(`Image generated and processed successfully: ${filepath}`);
+                    } else {
+                        elizaLogger.error(generatedImageResult.error || "Unknown error occurred during image generation.");
+                    }
+                } else {
+                    const images = await generateImage(
+                        {
+                            prompt: tweetTextForPosting,
+                            width: imageSettings?.width,
+                            height: imageSettings?.height,
+                        },
+                        this.runtime
+                    );
+                    if (images.success && images.data && images.data.length > 0) {
+                        elizaLogger.log(
+                            "Image generation successful, number of images:",
+                            images.data.length
+                        );
+                        for (let i = 0; i < images.data.length; i++) {
+                            const image = images.data[i];
+
+                            // Save the image and get filepath
+                            const filename = `generated_${Date.now()}_${i}`;
+
+                            // Choose save function based on image data format
+                            const filepath = image.startsWith("http")
+                                ? await saveHeuristImage(image, filename)
+                                : saveBase64Image(image, filename);
+
+                            mediaData.push({
+                                data: fs.readFileSync(filepath),
+                                mediaType: 'image/png'
+                            })
+                            elizaLogger.log(`Processing image ${i + 1}:`, filename);
+                            elizaLogger.log(
+                                `image:`,
+                                image
+                            );
+                        }
+                    } else {
+                        elizaLogger.error("Image generation failed or returned no data.");
+                    }
+                }
+            }
+
             try {
                 if (this.approvalRequired) {
                     // Send for approval instead of posting directly
@@ -623,7 +741,7 @@ export class TwitterPostClient {
                     elizaLogger.log("Tweet sent for approval");
                 } else {
                     elizaLogger.log(
-                        `Posting new tweet:\n ${tweetTextForPosting}`
+                        `Posting new tweet: ${tweetTextForPosting}`
                     );
                     this.postTweet(
                         this.runtime,
@@ -664,29 +782,30 @@ export class TwitterPostClient {
             modelClass: ModelClass.SMALL,
         });
 
-        elizaLogger.log("generate tweet content response:\n" + response);
+        elizaLogger.debug("generate tweet prompt:\n" + context);
 
         // First clean up any markdown and newlines
         const cleanedResponse = cleanJsonResponse(response);
+        const maxTweetLength = DEFAULT_MAX_TWEET_LENGTH;
 
         // Try to parse as JSON first
         const jsonResponse = parseJSONObjectFromText(cleanedResponse);
-        if (jsonResponse.text) {
+        if (jsonResponse?.text) {
             const truncateContent = truncateToCompleteSentence(
                 jsonResponse.text,
-                this.client.twitterConfig.MAX_TWEET_LENGTH
+                maxTweetLength
             );
             return truncateContent;
         }
         if (typeof jsonResponse === "object") {
             const possibleContent =
-                jsonResponse.content ||
-                jsonResponse.message ||
-                jsonResponse.response;
+                jsonResponse?.content ||
+                jsonResponse?.message ||
+                jsonResponse?.response;
             if (possibleContent) {
                 const truncateContent = truncateToCompleteSentence(
                     possibleContent,
-                    this.client.twitterConfig.MAX_TWEET_LENGTH
+                    maxTweetLength
                 );
                 return truncateContent;
             }
@@ -694,11 +813,11 @@ export class TwitterPostClient {
 
         let truncateContent = null;
         // Try extracting text attribute
-        const parsingText = extractAttributes(cleanedResponse, ["text"]).text;
+        const parsingText = extractAttributes(cleanedResponse, ["text"])?.text;
         if (parsingText) {
             truncateContent = truncateToCompleteSentence(
                 parsingText,
-                this.client.twitterConfig.MAX_TWEET_LENGTH
+                maxTweetLength
             );
         }
 
@@ -706,7 +825,7 @@ export class TwitterPostClient {
             // If not JSON or no valid content found, clean the raw text
             truncateContent = truncateToCompleteSentence(
                 cleanedResponse,
-                this.client.twitterConfig.MAX_TWEET_LENGTH
+                maxTweetLength
             );
         }
 
@@ -931,19 +1050,22 @@ export class TwitterPostClient {
                             )
                             .join("\n\n");
 
+                        const makeImageDescriptions = parseBooleanFromText(this.runtime.getSetting("MAKE_IMAGE_DESCRIPTIONS")) || false;
                         // Generate image descriptions if present
                         const imageDescriptions = [];
-                        if (tweet.photos?.length > 0) {
-                            elizaLogger.log(
-                                "Processing images in tweet for context"
-                            );
-                            for (const photo of tweet.photos) {
-                                const description = await this.runtime
-                                    .getService<IImageDescriptionService>(
-                                        ServiceType.IMAGE_DESCRIPTION
-                                    )
-                                    .describeImage(photo.url);
-                                imageDescriptions.push(description);
+                        if (makeImageDescriptions) {
+                            if (tweet.photos?.length > 0) {
+                                elizaLogger.log(
+                                    "Processing images in tweet for context"
+                                );
+                                for (const photo of tweet.photos) {
+                                    const description = await this.runtime
+                                        .getService<IImageDescriptionService>(
+                                            ServiceType.IMAGE_DESCRIPTION
+                                        )
+                                        .describeImage(photo.url);
+                                    imageDescriptions.push(description);
+                                }
                             }
                         }
 
@@ -998,12 +1120,14 @@ export class TwitterPostClient {
                             }
                         );
 
+                        let characterTwitterMessageHandlerTemplate = this.runtime.character.templates?.twitterMessageHandlerTemplate || this.runtime.character?.templates?.messageHandlerTemplate;
+                        if (characterTwitterMessageHandlerTemplate) characterTwitterMessageHandlerTemplate += messageCompletionFooter;
+
                         const quoteContent = await this.generateTweetContent(
                             enrichedState,
                             {
                                 template:
-                                    this.runtime.character.templates
-                                        ?.twitterMessageHandlerTemplate ||
+                                    characterTwitterMessageHandlerTemplate ||
                                     twitterMessageHandlerTemplate,
                             }
                         );
@@ -1146,17 +1270,20 @@ export class TwitterPostClient {
                 )
                 .join("\n\n");
 
+            const makeImageDescriptions = parseBooleanFromText(this.runtime.getSetting("MAKE_IMAGE_DESCRIPTIONS")) || false;
             // Generate image descriptions if present
             const imageDescriptions = [];
-            if (tweet.photos?.length > 0) {
-                elizaLogger.log("Processing images in tweet for context");
-                for (const photo of tweet.photos) {
-                    const description = await this.runtime
-                        .getService<IImageDescriptionService>(
-                            ServiceType.IMAGE_DESCRIPTION
-                        )
-                        .describeImage(photo.url);
-                    imageDescriptions.push(description);
+            if (makeImageDescriptions) {
+                if (tweet.photos?.length > 0) {
+                    elizaLogger.log("Processing images in tweet for context");
+                    for (const photo of tweet.photos) {
+                        const description = await this.runtime
+                            .getService<IImageDescriptionService>(
+                                ServiceType.IMAGE_DESCRIPTION
+                            )
+                            .describeImage(photo.url);
+                        imageDescriptions.push(description);
+                    }
                 }
             }
 
@@ -1200,11 +1327,13 @@ export class TwitterPostClient {
                 }
             );
 
+            let characterTwitterMessageHandlerTemplate = this.runtime.character.templates?.twitterMessageHandlerTemplate || this.runtime.character?.templates?.messageHandlerTemplate;
+            if (characterTwitterMessageHandlerTemplate) characterTwitterMessageHandlerTemplate += messageCompletionFooter;
+
             // Generate and clean the reply content
             const replyText = await this.generateTweetContent(enrichedState, {
                 template:
-                    this.runtime.character.templates
-                        ?.twitterMessageHandlerTemplate ||
+                    characterTwitterMessageHandlerTemplate ||
                     twitterMessageHandlerTemplate,
             });
 
