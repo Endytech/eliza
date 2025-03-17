@@ -44,7 +44,8 @@ enum MediaType {
     ANIMATION = "animation",
 }
 
-const MAX_MESSAGE_LENGTH = 4096; // Telegram's max message length
+// const MAX_MESSAGE_LENGTH = 4096; // Telegram's max message length
+const MAX_MESSAGE_LENGTH = 2048; // Telegram's max message length
 
 interface MessageContext {
     content: string;
