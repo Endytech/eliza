@@ -523,9 +523,6 @@ importers:
       '@discordjs/voice':
         specifier: 0.17.0
         version: 0.17.0(@discordjs/opus@https://codeload.github.com/discordjs/opus/tar.gz/679ff3f58e6804b80becc166c7214deb2ca026e2(encoding@0.1.13))(bufferutil@4.0.9)(utf-8-validate@5.0.10)
-      '@elizaos/core':
-        specifier: workspace:^
-        version: link:../core
       discord.js:
         specifier: 14.16.3
         version: 14.16.3(bufferutil@4.0.9)(utf-8-validate@5.0.10)
@@ -554,9 +551,6 @@ importers:
 
   packages/client-farcaster:
     dependencies:
-      '@elizaos/core':
-        specifier: workspace:^
-        version: link:../core
       '@neynar/nodejs-sdk':
         specifier: ^2.0.3
         version: 2.19.0(bufferutil@4.0.9)(encoding@0.1.13)(typescript@5.6.3)(utf-8-validate@5.0.10)(zod@3.24.1)
@@ -570,9 +564,6 @@ importers:
 
   packages/client-telegram:
     dependencies:
-      '@elizaos/core':
-        specifier: workspace:^
-        version: link:../core
       '@telegraf/types':
         specifier: 7.1.0
         version: 7.1.0
@@ -589,9 +580,6 @@ importers:
 
   packages/client-twitter:
     dependencies:
-      '@elizaos/core':
-        specifier: workspace:^
-        version: link:../core
       agent-twitter-client:
         specifier: 0.0.18
         version: 0.0.18(bufferutil@4.0.9)(utf-8-validate@5.0.10)
