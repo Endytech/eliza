@@ -19,6 +19,7 @@
         "dist"
     ],
     "dependencies": {
+        "@elizaos/core": "workspace:^",
         "tsup": "8.3.5"
     },
     "scripts": {
