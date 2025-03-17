@@ -981,6 +981,7 @@ export class MessageManager {
                 }
 
                 const fileStream = fs.createReadStream(mediaPath);
+                elizaLogger.info(`Saved image verified at fileStream:`, fileStream);
 
                 try {
                     await sendFunction(
@@ -1000,7 +1001,7 @@ export class MessageManager {
             );
         } catch (error) {
             elizaLogger.error(
-                `Failed to send ${type}. Path: ${mediaPath}. Error: ${error.message}`
+                `Failed to send ${type} to Telegram. Path: ${mediaPath}. Error: ${error.message}`
             );
             elizaLogger.debug(error.stack);
             throw error;
