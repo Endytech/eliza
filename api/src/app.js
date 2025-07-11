@@ -103,9 +103,9 @@ async function CharacterLogErrors(request, response) {
         }
         if (response) {
             if (character) {
-                response.json({ status: true, errors: errors[0].errors });
+                response.json({ status: true, errors: LimitJsonSize(errors[0].errors) });
             } else {
-                response.json({ status: true, characters: errors, total: totalErrors });
+                response.json({ status: true, characters: LimitJsonSize(errors), total: totalErrors });
             }
         }
     } catch (error) {
@@ -628,6 +628,25 @@ async function LogCharacterSystemData(logFile) {
         }
     }
     return data;
+}
+
+function LimitJsonSize(data, maxMB = 50) {
+    if (!Array.isArray(data)) return data; // if not array just return
+
+    const maxBytes = maxMB * 1024 * 1024;
+    let result = [];
+    let totalSize = 2; // []
+
+    // we go from the end, add elements until we are full
+    for (let i = data.length - 1; i >= 0; i--) {
+        const json = JSON.stringify(data[i]);
+        const jsonSize = Buffer.byteLength(json, 'utf8') + (result.length > 0 ? 1 : 0); // +1 on the comma
+        if (totalSize + jsonSize > maxBytes) break;
+        result.unshift(data[i]);
+        totalSize += jsonSize;
+    }
+
+    return result;
 }
 
 function TrimMiddleContent(bigString, keepLength, maxLength) {
