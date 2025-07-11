@@ -105,7 +105,7 @@ async function CharacterLogErrors(request, response) {
             if (character) {
                 response.json({ status: true, errors: LimitJsonSize(errors[0].errors) });
             } else {
-                response.json({ status: true, characters: errors.forEach((e) => { e.errors = limitJsonSize(e.errors, 50) }), total: totalErrors });
+                response.json({ status: true, characters: errors.length > 0 ? errors.forEach((e) => { e.errors = LimitJsonSize(e.errors, 50 / errors.length) }) : errors, total: totalErrors });
             }
         }
     } catch (error) {
