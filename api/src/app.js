@@ -402,11 +402,24 @@ async function LogViewStream(request, response) {
                 response.write('{"status":true,"view":[');
                 let isFirstChunk = true;
                 const ansiRegex = /\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+
+                const maxBytes = 50 * 1024 * 1024; // 50 MB
+                let totalBytes = 0;
+
                 rl.on('line', (line) => {
+                    const cleanLine = line.replace(ansiRegex, '');
+                    const jsonLine = JSON.stringify(cleanLine);
+                    const lineBytes = Buffer.byteLength(jsonLine, 'utf8') + (isFirstChunk ? 0 : 1); // +1 на запятую
+
+                    if (totalBytes + lineBytes > maxBytes) {
+                        rl.close(); // manually close to stop reading
+                        return;
+                    }
+
                     if (!isFirstChunk) response.write(',');
                     isFirstChunk = false;
-                    const cleanLine = line.replace(ansiRegex, '');
                     response.write(JSON.stringify(cleanLine));
+                    totalBytes += lineBytes;
                 });
 
                 rl.on('close', () => {
