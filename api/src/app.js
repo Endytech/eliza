@@ -105,7 +105,7 @@ async function CharacterLogErrors(request, response) {
             if (character) {
                 response.json({ status: true, errors: LimitJsonSize(errors[0].errors) });
             } else {
-                response.json({ status: true, characters: LimitJsonSize(errors), total: totalErrors });
+                response.json({ status: true, characters: errors.forEach((e) => { e.errors = limitJsonSize(e.errors, 50) }), total: totalErrors });
             }
         }
     } catch (error) {
@@ -637,15 +637,22 @@ function LimitJsonSize(data, maxMB = 50) {
     let result = [];
     let totalSize = 2; // []
 
-    // we go from the end, add elements until we are full
-    for (let i = data.length - 1; i >= 0; i--) {
+    // we go from the beginning, add elements until we are full
+    for (let i = 0; i < data.length; i++) {
         const json = JSON.stringify(data[i]);
         const jsonSize = Buffer.byteLength(json, 'utf8') + (result.length > 0 ? 1 : 0); // +1 on the comma
         if (totalSize + jsonSize > maxBytes) break;
-        result.unshift(data[i]);
+        result.push(data[i]);
         totalSize += jsonSize;
     }
-
+    // // we go from the end, add elements until we are full
+    // for (let i = data.length - 1; i >= 0; i--) {
+    //     const json = JSON.stringify(data[i]);
+    //     const jsonSize = Buffer.byteLength(json, 'utf8') + (result.length > 0 ? 1 : 0); // +1 on the comma
+    //     if (totalSize + jsonSize > maxBytes) break;
+    //     result.unshift(data[i]);
+    //     totalSize += jsonSize;
+    // }
     return result;
 }
 
