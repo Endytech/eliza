@@ -570,7 +570,7 @@ export async function generateText({
                     fetch: runtime.fetch,
                 });
 
-                const { text: openaiResponse } = await aiGenerateText({
+                const params: any = {
                     model: openai.languageModel(model),
                     prompt: context,
                     system:
@@ -581,11 +581,19 @@ export async function generateText({
                     onStepFinish: onStepFinish,
                     maxSteps: maxSteps,
                     temperature: temperature,
-                    maxTokens: max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                     experimental_telemetry: experimental_telemetry,
-                });
+                };
+
+                // different field name for GPT-5
+                if (model.startsWith("gpt-5")) {
+                    params.max_completion_tokens = max_response_length;
+                } else {
+                    params.maxTokens = max_response_length;
+                }
+
+                const { text: openaiResponse } = await aiGenerateText(params);
 
                 response = openaiResponse;
                 console.log("Received response from OpenAI model.");
@@ -2367,10 +2375,10 @@ async function handleOpenAI({
 }: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
     const endpoint = runtime.character.modelEndpointOverride || getEndpoint(provider);
     const baseURL = getCloudflareGatewayBaseURL(runtime, "openai") || endpoint;
-    const openai = createOpenAI({ 
-        apiKey, 
+    const openai = createOpenAI({
+        apiKey,
         baseURL,
-        fetch: runtime.fetch 
+        fetch: runtime.fetch
     });
     return aiGenerateObject({
         model: openai.languageModel(model),
@@ -2406,10 +2414,10 @@ async function handleAnthropic({
     const baseURL = getCloudflareGatewayBaseURL(runtime, "anthropic");
     elizaLogger.debug("Anthropic handleAnthropic baseURL:", { baseURL });
 
-    const anthropic = createAnthropic({ 
-        apiKey, 
+    const anthropic = createAnthropic({
+        apiKey,
         baseURL,
-        fetch: runtime.fetch 
+        fetch: runtime.fetch
     });
     return await aiGenerateObject({
         model: anthropic.languageModel(model),
@@ -2437,10 +2445,10 @@ async function handleGrok({
     modelOptions,
     runtime,
 }: ProviderOptions): Promise<GenerationResult> {
-    const grok = createOpenAI({ 
-        apiKey, 
+    const grok = createOpenAI({
+        apiKey,
         baseURL: models.grok.endpoint,
-        fetch: runtime.fetch 
+        fetch: runtime.fetch
     });
     return aiGenerateObject({
         model: grok.languageModel(model, { parallelToolCalls: false }),
@@ -2472,10 +2480,10 @@ async function handleGroq({
     const baseURL = getCloudflareGatewayBaseURL(runtime, "groq");
     elizaLogger.debug("Groq handleGroq baseURL:", { baseURL });
 
-    const groq = createGroq({ 
-        apiKey, 
+    const groq = createGroq({
+        apiKey,
         baseURL,
-        fetch: runtime.fetch 
+        fetch: runtime.fetch
     });
     return await aiGenerateObject({
         model: groq.languageModel(model),
@@ -2505,7 +2513,7 @@ async function handleGoogle({
 }: ProviderOptions): Promise<GenerateObjectResult<unknown>> {
     const google = createGoogleGenerativeAI({
         apiKey,
-        fetch: runtime.fetch 
+        fetch: runtime.fetch
     });
     return aiGenerateObject({
         model: google(model),
@@ -2559,10 +2567,10 @@ async function handleRedPill({
     modelOptions,
     runtime,
 }: ProviderOptions): Promise<GenerationResult> {
-    const redPill = createOpenAI({ 
-        apiKey, 
+    const redPill = createOpenAI({
+        apiKey,
         baseURL: models.redpill.endpoint,
-        fetch: runtime.fetch 
+        fetch: runtime.fetch
     });
     return aiGenerateObject({
         model: redPill.languageModel(model),
@@ -2652,10 +2660,10 @@ async function handleDeepSeek({
     modelOptions,
     runtime,
 }: ProviderOptions): Promise<GenerationResult> {
-    const openai = createOpenAI({ 
-        apiKey, 
+    const openai = createOpenAI({
+        apiKey,
         baseURL: models.deepseek.endpoint,
-        fetch: runtime.fetch 
+        fetch: runtime.fetch
     });
     return aiGenerateObject({
         model: openai.languageModel(model),
@@ -2778,10 +2786,10 @@ async function handleNearAi({
     modelOptions,
     runtime,
 }: ProviderOptions): Promise<GenerationResult> {
-    const nearai = createOpenAI({ 
-        apiKey, 
+    const nearai = createOpenAI({
+        apiKey,
         baseURL: models.nearai.endpoint,
-        fetch: runtime.fetch 
+        fetch: runtime.fetch
     });
     const settings = schema ? { structuredOutputs: true } : undefined;
     return aiGenerateObject({
