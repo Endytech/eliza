@@ -567,9 +567,11 @@ export async function generateText({
                     experimental_telemetry: experimental_telemetry,
                 };
 
-                // different field name for GPT-5
                 if (model.startsWith("gpt-5")) {
+                    // different field name "maxTokens" for GPT-5
                     params.max_completion_tokens = max_response_length;
+                    // For GPT-5 only 1
+                    params.temperature = 1;
                 } else {
                     params.maxTokens = max_response_length;
                 }
