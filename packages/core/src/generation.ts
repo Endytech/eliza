@@ -551,7 +551,7 @@ export async function generateText({
                     fetch: runtime.fetch,
                 });
 
-                const { text: openaiResponse } = await aiGenerateText({
+                const params: any = {
                     model: openai.languageModel(model),
                     prompt: context,
                     system:
@@ -562,11 +562,19 @@ export async function generateText({
                     onStepFinish: onStepFinish,
                     maxSteps: maxSteps,
                     temperature: temperature,
-                    maxTokens: max_response_length,
                     frequencyPenalty: frequency_penalty,
                     presencePenalty: presence_penalty,
                     experimental_telemetry: experimental_telemetry,
-                });
+                };
+
+                // different field name for GPT-5
+                if (model.startsWith("gpt-5")) {
+                    params.max_completion_tokens = max_response_length;
+                } else {
+                    params.maxTokens = max_response_length;
+                }
+
+                const { text: openaiResponse } = await aiGenerateText(params);
 
                 response = openaiResponse;
                 console.log("Received response from OpenAI model.");
